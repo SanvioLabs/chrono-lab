@@ -1,0 +1,160 @@
+# Chrono-Lab kickoff
+
+Read this once, top to bottom, before you open Kiro. It takes about ten minutes
+and gets you from a fresh clone to Kiro writing the first spec.
+
+Chrono-Lab is a time machine for AI agents. You record an agent run as a
+timeline of steps, rewind to any step, change one thing, and let the run play
+forward again from there. Then you put the two futures side by side and see
+what that one change did.
+
+**Hackathon:** Kiroween 2026, <https://kiroween.devpost.com/>.
+**Deadline:** Friday 2026-12-04, 2:00 pm PT, no extensions. We aim to submit by
+Wednesday 2026-12-02.
+
+## 0. Before anything else
+
+Where things stand, as of 2026-11-03:
+
+| Question | Answer |
+|---|---|
+| License | **MIT**, in `LICENSE`. It must show in the repo's About section |
+| Repo | **`SanvioLabs/chrono-lab`, private for now.** The rules require a public repo, so it has to be made public before we submit. Don't make it public before then without Pat |
+| Entrant | **Sanvio Labs, LLC**, which `LICENSE` names |
+
+Work goes on a feature branch, then a pull request into `staging`, then
+`staging` into `main`. Both branches are protected: no direct pushes.
+
+## 1. Lay out the folders
+
+Clone the project and the harness **side by side**, never one inside the other:
+
+```
+kiroween/
+├── chrono-lab/          ← this repo, public at submission
+└── harness-starter/     ← Pat's harness, for reference and updates
+```
+
+```bash
+mkdir kiroween && cd kiroween
+git clone git@github.com:SanvioLabs/chrono-lab.git
+git clone https://github.com/SanvioLabs/sanvio-harness-starter harness-starter
+```
+
+The repo goes public before we submit, so nothing gets committed into it that
+you haven't read and meant to publish.
+
+## 2. Add the harness
+
+**Already done in this copy** (harness commit `4c9a782`, 2026-11-03). The three
+`harness-*.md` files are in `.kiro/steering/` and the README lists them. Repeat
+this step only to pull in a newer harness.
+
+The harness is `sanvio-harness-starter`: MIT-licensed, public, and it already
+works with Kiro. Its rules for how the agent works, replies and handles data
+come across as three steering files.
+
+Copy them as real files, not symlinks. A symlink into the sibling folder looks
+fine on your machine and arrives on GitHub as a broken link:
+
+```bash
+cd chrono-lab
+cp -L ../harness-starter/steering/operating.md       .kiro/steering/harness-operating.md
+cp -L ../harness-starter/steering/response-style.md  .kiro/steering/harness-response-style.md
+cp -L ../harness-starter/steering/data-and-tools.md  .kiro/steering/harness-data-and-tools.md
+```
+
+Then two small edits:
+
+- Open each copied file and check the links. Three point at files that only
+  exist in the harness (`gates.md`, `../.claude/hooks/guard.py`,
+  `../skills/learn/`). Turn those into
+  links to `https://github.com/SanvioLabs/sanvio-harness-starter/blob/main/...`
+  or delete the sentence
+- Fill in the **Pre-existing material** section of `README.md`. The rules require
+  us to disclose anything we didn't write during the hackathon, and these three
+  files are that. Keep the MIT notice from the harness's `LICENSE`
+
+Everything else in `.kiro/` was written for Chrono-Lab and stays as it is.
+
+## 3. Set up the repo
+
+**Already done:** the repo is `SanvioLabs/chrono-lab`, with `main` and
+`staging` protected. To work on it:
+
+```bash
+git clone git@github.com:SanvioLabs/chrono-lab.git && cd chrono-lab
+git config fetch.prune true
+git switch staging && git switch -c spec/01-trace-and-replay
+```
+
+**Keep `.kiro/` committed.** The rules require `/.kiro` at the repo root and not
+gitignored. The `.gitignore` leaves it in on purpose.
+
+## 4. Open it in Kiro
+
+1. Open the `chrono-lab` folder in Kiro
+2. Check the steering panel lists all seven files in `.kiro/steering/`
+3. Open `kiro-prompts/01-trace-and-replay.md` and paste its prompt into a new
+   **Spec** session. Let Kiro write the requirements, design and tasks. Read
+   them before saying yes to any of it
+4. Work the tasks in Kiro. When the first spec's gate passes (see the schedule),
+   move to prompt 02
+
+**Kiro builds the application, not another tool.** The rules disqualify an
+entry for not using Kiro enough, and the write-up has to show where we used it.
+Claude Code or Codex can review a diff or read the rules for us. They don't
+write the app. If you catch yourself pasting code from another tool, stop and
+redo that step in Kiro.
+
+## 5. Kiro features to use, and where
+
+Keep `docs/kiro-usage.md` going as you work: a dated line each time you use one
+of these for something real. It becomes the write-up, and it's far easier
+written as you go than reconstructed on December 1st.
+
+| Feature | Use in Chrono-Lab |
+|---|---|
+| Specs | One per prompt in `kiro-prompts/`: trace and replay, fork and compare, the lab UI, the demo agent |
+| Steering | What's in `.kiro/steering/` now, plus anything we learn the hard way |
+| Hooks | Ask Kiro to create three: run the tests when a source file is saved; scan changed copy and assets for the banned names in `safety-and-trademarks.md`, skipping `.kiro/steering/` itself, since the rule file has to name them; flag when code under a spec's folder changes and its `tasks.md` doesn't |
+| Property-based tests | Replay of an unchanged prefix reproduces the recorded steps exactly; a fork never changes its parent; the step diff is symmetric; a trace survives a save and load unchanged |
+| MCP | Browser automation to drive the UI through a full rewind, edit and compare in a test |
+| Custom agents | A safety reviewer that reads every change against `safety-and-trademarks.md` |
+
+## 6. Schedule
+
+| Week | Work | Gate that ends it |
+|---|---|---|
+| Nov 3-8 | Repo, license, credit request. Spec 01: trace format, recorder, replay | A recorded demo run replays to the same final answer with zero model calls |
+| Nov 9-15 | Spec 02: fork at a step, edit it, run forward live, compare | Change one step, get a second future, see the two side by side |
+| Nov 16-22 | Spec 03 and 04: the lab UI and the demo agent. Public deploy | Someone who has never seen it does a full rewind and compare at the public URL without help |
+| Nov 23-29 | Test with three or more real people, fix what they trip on. Thanksgiving is Nov 26 | Three people each find a step that changes the outcome |
+| Nov 30-Dec 2 | Make the repo public, video, write-up, blog post, social post, submit | Submitted Dec 2 |
+| Dec 3-4 | Buffer only | Closes Dec 4, 2:00 pm PT |
+
+When a week slips, cut from the stretch list in `.kiro/steering/product.md`, never
+from the list marked "never cut".
+
+## 7. Rules checklist
+
+Read the official rules once yourself at <https://kiroween.devpost.com/rules>.
+This list was taken from them on 2026-10-30 and may have changed.
+
+- [ ] New repo, and all our code written on or after 2026-10-30
+- [ ] Pre-existing material disclosed in the README (the harness steering, any template)
+- [ ] Public GitHub repo with an open source license showing in the About section
+- [ ] `/.kiro` at the repo root and not gitignored
+- [ ] All source, assets and run instructions in the repo
+- [ ] A working URL, free and open to judges, through 2027-01-29
+- [ ] Public YouTube video under 3 minutes, showing it actually working
+- [ ] Text description and the write-up of how we used Kiro
+- [ ] Kiro credit request filed early. Hard deadline 2026-12-01, 12:00 pm PT. Allow 48 business hours
+- [ ] Social post starting with `#KiroweenHackathon26`, published during the period
+- [ ] Blog post on a third-party platform that mentions Kiroween 2026
+
+## 8. When you get stuck
+
+Write down what you tried and ask Pat. Don't paper over it: a step that doesn't
+work, written up honestly, makes a better Kiro write-up than one that quietly
+got done somewhere else.

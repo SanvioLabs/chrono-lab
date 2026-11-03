@@ -1,0 +1,13 @@
+# .kiro/ is NOT ignored. The Kiroween rules require it at the repo root and committed.
+
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# Session traces written at runtime. Demo traces live in demo/ and are committed.
+data/sessions/
