@@ -85,6 +85,10 @@ Cut from the top when a weekly gate slips.
 
 ## Judging
 
+We enter the **Costume Contest** category: a haunting interface whose spooky
+design makes the tool easier to use, not harder. Design carries more weight for
+us than the score sheet alone suggests.
+
 Five criteria, weighted equally: potential impact, technical implementation,
 design, the idea itself, and presentation. Judges may score from the video and
 text alone, so the 3-minute video has to show the full loop working.
