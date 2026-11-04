@@ -20,7 +20,8 @@ Where things stand, as of 2026-11-03:
 |---|---|
 | License | **MIT**, in `LICENSE`. It must show in the repo's About section |
 | Repo | **`SanvioLabs/chrono-lab`, private for now.** The rules require a public repo, so it has to be made public before we submit. Don't make it public before then without Pat |
-| Entrant | **Sanvio Labs, LLC**, which `LICENSE` names |
+| Entrant | **Sanvio Labs, LLC**, which `LICENSE` names. Pat enters it as the organization's Representative |
+| Category | **Costume Contest**, recommended: "a haunting user interface" with "spooky design elements that enhance your app's function". Confirmed at submission |
 
 Work goes on a feature branch, then a pull request into `staging`, then
 `staging` into `main`. Both branches are protected: no direct pushes.
@@ -101,11 +102,11 @@ gitignored. The `.gitignore` leaves it in on purpose.
 4. Work the tasks in Kiro. When the first spec's gate passes (see the schedule),
    move to prompt 02
 
-**Kiro builds the application, not another tool.** The rules disqualify an
-entry for not using Kiro enough, and the write-up has to show where we used it.
-Claude Code or Codex can review a diff or read the rules for us. They don't
-write the app. If you catch yourself pasting code from another tool, stop and
-redo that step in Kiro.
+**Kiro builds the application.** The rules require a project "built using Kiro
+(IDE, CLI, Web, and/or Kiro Crew)", disqualify "insufficient use of Kiro", and
+score how deeply we used it. They don't ban other AI tools. Our own rule is
+stricter: Kiro writes the app. Claude Code may review a diff, read the rules, or
+start a Kiro CLI run, and when it does, that goes in `docs/kiro-usage.md` too.
 
 ## 5. Kiro features to use, and where
 
@@ -120,7 +121,18 @@ written as you go than reconstructed on December 1st.
 | Hooks | Ask Kiro to create three: run the tests when a source file is saved; scan changed copy and assets for the banned names in `safety-and-trademarks.md`, skipping `.kiro/steering/` itself, since the rule file has to name them; flag when code under a spec's folder changes and its `tasks.md` doesn't |
 | Property-based tests | Replay of an unchanged prefix reproduces the recorded steps exactly; a fork never changes its parent; the step diff is symmetric; a trace survives a save and load unchanged |
 | MCP | Browser automation to drive the UI through a full rewind, edit and compare in a test |
-| Custom agents | A safety reviewer that reads every change against `safety-and-trademarks.md` |
+| Custom agents | A safety reviewer that reads every change against `safety-and-trademarks.md`, adapted from the harness's reviewer agents |
+| Kiro CLI | Headless spec and task runs alongside the IDE, so the write-up can compare the two |
+
+### Taking more from the harness
+
+The rules allow starter templates and require us to "disclose any other
+pre-existing code or work". Open source we use has to keep its license, and
+our project has to build on it rather than repackage it. So when we adapt
+another piece of `sanvio-harness-starter`, its reviewer agents, its pre-commit
+secret check, its gates, add a line for it to the README's **Pre-existing
+material** list in the same commit, and say in `docs/kiro-usage.md` what we
+turned it into in Kiro.
 
 ## 6. Schedule
 
@@ -139,10 +151,11 @@ from the list marked "never cut".
 ## 7. Rules checklist
 
 Read the official rules once yourself at <https://kiroween.devpost.com/rules>.
-This list was taken from them on 2026-10-30 and may have changed.
+This list was last checked against them on 2026-11-03.
 
 - [ ] New repo, and all our code written on or after 2026-10-30
-- [ ] Pre-existing material disclosed in the README (the harness steering, any template)
+- [ ] Pre-existing material disclosed in the README (the harness steering, any template, anything else adapted)
+- [ ] Category named on the form (Costume Contest, unless we change our minds)
 - [ ] Public GitHub repo with an open source license showing in the About section
 - [ ] `/.kiro` at the repo root and not gitignored
 - [ ] All source, assets and run instructions in the repo
