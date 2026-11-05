@@ -6,9 +6,9 @@
 import type { ModelCallInput, ModelCallOutput } from "../../src/trace/types.js";
 import type { ModelAdapter, ToolRegistry } from "../../src/recorder/types.js";
 
-// Pre-defined responses for the two model turns.
+// Pre-defined responses for the two record run model turns.
 const RESPONSES: ModelCallOutput[] = [
-  // Turn 1: requests the echo tool.
+  // Turn 0: requests the echo tool.
   {
     message: { role: "assistant", content: "" },
     finishReason: "tool_calls",
@@ -20,7 +20,25 @@ const RESPONSES: ModelCallOutput[] = [
       },
     ],
   },
-  // Turn 2: final answer after seeing the tool result.
+  // Turn 1: final answer after seeing the tool result.
+  {
+    message: { role: "assistant", content: "Final answer: hello" },
+    finishReason: "stop",
+  },
+  // Turn 2: used by fork live phase (edited model_call). Requests the echo
+  // tool again so the fork branch has the same structure as the parent.
+  {
+    message: { role: "assistant", content: "" },
+    finishReason: "tool_calls",
+    toolCalls: [
+      {
+        id: "call-echo-002",
+        name: "echo",
+        arguments: { text: "hello" },
+      },
+    ],
+  },
+  // Turn 3: final answer for the fork branch after the tool result.
   {
     message: { role: "assistant", content: "Final answer: hello" },
     finishReason: "stop",
@@ -33,8 +51,36 @@ export interface StandInAdapters {
   reset: () => void;
 }
 
+// Returns adapters whose model adapter immediately returns a stop response
+// with a fixed final answer. Useful for the live phase after a tool_result
+// edit, where the conversation history already ends with a tool result and
+// the next model turn should produce a final answer.
+export function makeStopOnlyAdapters(): StandInAdapters {
+  const STOP_RESPONSE: ModelCallOutput = {
+    message: { role: "assistant", content: "Final answer: edited result" },
+    finishReason: "stop",
+  };
+
+  const modelAdapter: ModelAdapter = async (
+    _input: ModelCallInput
+  ): Promise<ModelCallOutput> => {
+    return STOP_RESPONSE;
+  };
+
+  const toolRegistry: ToolRegistry = {
+    echo: async (args: Record<string, unknown>): Promise<unknown> => {
+      return args["text"];
+    },
+  };
+
+  return { modelAdapter, toolRegistry, reset: () => {} };
+}
+
 // Returns a fresh pair of adapters. Each call to modelAdapter advances an
 // internal cursor, so the second call returns the second response.
+// Responses 0 and 1 cover a full record run (tool_calls then stop).
+// Responses 2 and 3 cover a subsequent fork live phase (same sequence),
+// so a single adapter instance can be shared across a record run and one fork.
 export function makeStandInAdapters(): StandInAdapters {
   let cursor = 0;
 

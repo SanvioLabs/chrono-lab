@@ -69,8 +69,9 @@ describe("loadTrace", () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "chrono-save-"));
     const filePath = path.join(tmpDir, "empty.json");
 
+    // Use the current version so loadTrace returns it unchanged (no migration).
     const trace: Trace = {
-      version: "1.0.0",
+      version: "1.1.0",
       runId: "abc123",
       createdAt: new Date(0).toISOString(),
       steps: [],
