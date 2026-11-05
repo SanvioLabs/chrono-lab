@@ -25,17 +25,26 @@ export interface FakeModel {
 // drives a record run (turns 0 and 1) and then one fork live phase (turns 2
 // and 3) without running out. Every string here is plain text that no scrub
 // pattern matches.
+//
+// Each response reports small deterministic token counts, so a recorded step
+// carries the tokens the model returned (spec 01 R-01) rather than always
+// zero. The counts are fixed per turn, so a run records the same tokens every
+// time. The "fake" model is priced at zero in caps.ts, so these tokens still
+// cost nothing and never trip a cap; they only make the recorded token figure
+// real.
 const RESPONSES: ModelCallOutput[] = [
   // Turn 0: request the echo tool.
   {
     message: { role: "assistant", content: "" },
     finishReason: "tool_calls",
     toolCalls: [{ id: "call-echo-001", name: "echo", arguments: { text: "hello" } }],
+    tokens: { input: 12, output: 4 },
   },
   // Turn 1: final answer after seeing the tool result.
   {
     message: { role: "assistant", content: "Final answer: hello" },
     finishReason: "stop",
+    tokens: { input: 20, output: 6 },
   },
   // Turn 2: used by a fork live phase (edited model_call). Request echo again
   // so the fork branch has the same shape as the parent.
@@ -43,11 +52,13 @@ const RESPONSES: ModelCallOutput[] = [
     message: { role: "assistant", content: "" },
     finishReason: "tool_calls",
     toolCalls: [{ id: "call-echo-002", name: "echo", arguments: { text: "hello" } }],
+    tokens: { input: 14, output: 4 },
   },
   // Turn 3: final answer for the fork branch after the tool result.
   {
     message: { role: "assistant", content: "Final answer: hello" },
     finishReason: "stop",
+    tokens: { input: 22, output: 6 },
   },
 ];
 

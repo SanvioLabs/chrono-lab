@@ -158,7 +158,9 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
 
       // Fix 2: charge actual tokens reported by the model output.
       // When the adapter does not populate tokens, fall back to zero (no cost
-      // for stub/test models, which is correct since their price is zero).
+      // for stub/test models, which is correct since their price is zero). The
+      // Recorder that runs inside the live phase records the same tokens and
+      // cost onto the step itself.
       const actualCost = output.tokens
         ? computeActualCostUsd(
             input.model,
@@ -298,17 +300,25 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
     // Run the edited model call live immediately.
     const liveModelOutput = await modelAdapter(editedInput);
 
-    // Fix 2: charge actual cost from token counts, not the estimate.
-    const actualCost = liveModelOutput.tokens
-      ? computeActualCostUsd(
-          editedInput.model,
-          liveModelOutput.tokens.input,
-          liveModelOutput.tokens.output
-        )
-      : computeActualCostUsd(editedInput.model, 0, 0);
+    // Fix 2: charge actual cost from token counts, not the estimate. Record
+    // the tokens the model reported (zero only when it reports none) and the
+    // matching cost, so the edited fork-point step carries its own tokens and
+    // cost rather than the original step's (spec 01 R-01).
+    const liveTokens = liveModelOutput.tokens
+      ? {
+          input: liveModelOutput.tokens.input,
+          output: liveModelOutput.tokens.output,
+        }
+      : { input: 0, output: 0 };
+    const actualCost = computeActualCostUsd(
+      editedInput.model,
+      liveTokens.input,
+      liveTokens.output
+    );
     ledger.add(actualCost);
 
-    // Fix 4: the edited step carries the live output, not the original output.
+    // Fix 4: the edited step carries the live output, not the original output,
+    // and the tokens and cost from that live call.
     const editedModelStep: ModelCallStep = {
       ...originalStep,
       // id/runId set by emitLiveStep (index 0).
@@ -318,6 +328,8 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
       output: liveModelOutput,
       model: editedInput.model,
       settings: editedInput.settings,
+      tokens: liveTokens,
+      cost: actualCost,
       live: true,
       edited: true,
     };

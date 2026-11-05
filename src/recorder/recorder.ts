@@ -12,10 +12,13 @@ import type {
   ToolCallStep,
   ToolResultStep,
   ModelCallInput,
+  ModelCallOutput,
+  TokenCounts,
   EndReason,
 } from "../trace/types.js";
 import { TRACE_VERSION } from "../trace/types.js";
 import { saveTrace } from "../trace/save.js";
+import { computeActualCostUsd } from "../server/caps.js";
 
 // The step bound that ends a run that never stops on its own. A model that
 // keeps asking for tools would otherwise loop forever; with a zero-cost model
@@ -51,6 +54,17 @@ export interface RecorderOptions {
 export interface RunLoopResult {
   steps: Step[];
   endReason: EndReason;
+}
+
+// Reads the token counts a model output reports. When the adapter reports
+// none, the step carries zero tokens (and therefore zero cost). Spec 01's
+// R-01 requires the recorded tokens, so a step reflects what the adapter
+// actually returned rather than always zero.
+function tokensFromOutput(output: ModelCallOutput): TokenCounts {
+  if (output.tokens) {
+    return { input: output.tokens.input, output: output.tokens.output };
+  }
+  return { input: 0, output: 0 };
 }
 
 // The minimal agent loop used in this spec:
@@ -191,6 +205,17 @@ export class Recorder {
       const modelOutput = await this.modelAdapter(modelInput);
       const modelDuration = performance.now() - modelStart;
 
+      // Record the tokens the adapter reported (zero only when it reports
+      // none), and the matching cost from the price table for this model.
+      // Spec 01 R-01 requires the recorded tokens and cost, so a step reflects
+      // what the model returned rather than always zero.
+      const tokens = tokensFromOutput(modelOutput);
+      const cost = computeActualCostUsd(
+        modelInput.model,
+        tokens.input,
+        tokens.output
+      );
+
       const modelStep: ModelCallStep = {
         id: modelStepId,
         runId,
@@ -201,8 +226,8 @@ export class Recorder {
         durationMs: modelDuration,
         model: modelInput.model,
         settings: modelInput.settings,
-        tokens: { input: 0, output: 0 },
-        cost: 0,
+        tokens,
+        cost,
         input: modelInput,
         output: modelOutput,
         live,
