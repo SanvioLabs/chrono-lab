@@ -30,30 +30,44 @@ Verified:
 
 ---
 
-## Task 2: `onStep` and `signal` on the fork and record paths (C-03)
+## Task 2: `onStep`, `signal` and the step bound on the fork and record paths (C-03)
 
-*Write both tests first.*
+*Write the tests first.*
 
-Files: `tests/compare/fork-onstep.test.ts`, `tests/compare/fork-stop.test.ts`
+Files: `tests/compare/fork-onstep.test.ts`, `tests/compare/fork-stop.test.ts`,
+`tests/recorder/max-steps.test.ts`
 
 - [ ] `onStep` test: a fork run with an `onStep` callback calls it once per live
       step, in order, and the steps collected by `onStep` equal the live steps
-      in the saved branch.
+      in the saved branch (same ids, so nothing already streamed is rewritten).
 - [ ] `signal` test: aborting the `signal` after the first live step saves a
       partial branch holding the prefix plus exactly the steps completed before
       the abort, makes no further live call, and rewrites none of the steps
-      already passed to `onStep`.
+      already passed to `onStep`. The test is bounded: without the stop
+      behaviour it fails on an assertion, not by exhausting memory.
+- [ ] Step-bound test (`tests/recorder/max-steps.test.ts`): a model that never
+      stops ends a record run at `maxSteps` with `endReason: "max_steps"`; the
+      default bound (`DEFAULT_MAX_STEPS`) applies when none is given; a runaway
+      fork live phase ends at the bound and returns a clean `ForkSuccess` whose
+      branch records `endReason: "max_steps"`.
 - [ ] Add `onStep?: (step: Step) => void` and `signal?: AbortSignal` to
       `ForkOptions` in `src/compare/fork.ts`. Forward each live step to
-      `options.onStep` (including the immediate model-call edit step). Add a
-      `StopRequested` sentinel; throw it from the step callback when
-      `signal.aborted`; widen the `try/catch` around `continueFrom` to catch it
-      and fall through to save the partial branch, the same path a cap hit uses.
-      A stop returns a `ForkSuccess` whose branch is the shorter, saved branch.
+      `options.onStep` with its final branch id (including the immediate
+      model-call edit step), so an id the server streams is never rewritten in
+      the saved branch. On an aborted signal, stop after the current step and
+      save the partial branch, the same path a cap hit uses. A stop returns a
+      `ForkSuccess` whose branch is the shorter, saved branch.
+- [ ] Add the step bound to library code (see
+      `design-step-bound.md`): `RecorderOptions` gains `maxSteps?: number`
+      (default `DEFAULT_MAX_STEPS` = 50); the recorder loop ends cleanly at the
+      bound and marks `endReason: "max_steps"`. `Trace` gains an optional
+      `endReason` field. `forkTrace` passes the bound through to the live phase
+      (the edited step counts as the first live step, so the inner recorder gets
+      `maxSteps - 1`).
 - [ ] Give the record path (`src/recorder/recorder.ts` as driven by the server)
       the same `signal` handling so a record in flight stops and saves a partial
-      run.
-- [ ] Confirm both tests pass and `npm run typecheck` exits 0.
+      run; the step bound also protects the record path directly.
+- [ ] Confirm all three test files pass and `npm run typecheck` exits 0.
 
 Verified:
 

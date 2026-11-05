@@ -129,6 +129,73 @@ fork. The server passes the per-stream abort signal into both record and fork.
   abort, and makes no further live call. A test proves no step already passed to
   `onStep` is dropped or rewritten in the saved branch.
 
+### The step bound (`maxSteps`): ending a runaway run (C-03)
+
+A library change found while writing the Task 2 stop test. Nothing bounded an
+agent run: a model that keeps asking for a tool makes `Recorder.run` and
+`continueFrom` loop forever, and with the zero-cost fake model the spend caps
+never stop it. On the public site that is a runaway. The Task 2 stop test even
+exhausted a test worker's memory before the bound existed.
+
+`RecorderOptions` gains `maxSteps?: number`, defaulting to `DEFAULT_MAX_STEPS`
+(50). The loop counts the steps it has produced and, before the next model call
+or tool step, ends cleanly when the count reaches the bound. The run then
+records `endReason: "max_steps"` instead of looping. `Trace` gains an optional
+`endReason` field:
+
+```typescript
+export type EndReason = "stop" | "max_steps" | "aborted" | "cap";
+
+export interface Trace {
+  // ...existing fields...
+  // Why the run ended. Absent when not recorded (older traces, replays).
+  endReason?: EndReason;
+}
+```
+
+`endReason` is optional and additive: older traces and replays omit it, and the
+replay step-for-step equality is unaffected, since it compares steps, not the
+trace envelope.
+
+`forkTrace` passes the bound into the live phase. The edited fork-point step
+counts as the first live step, so the recorder that drives the rest is given
+`maxSteps - 1`, keeping the whole live phase within the bound. A step-bound end
+is a clean, saved result (`ForkSuccess`) whose branch is simply shorter, the
+same shape as a stop; the branch records `endReason: "max_steps"`. The record
+path inherits the bound directly from `Recorder`.
+
+#### How the bound relates to the stop signal
+
+The stop signal (the rest of C-03) and the step bound are two ways the same loop
+ends early and saves a partial run. The signal is a user or server asking to
+stop now (`endReason: "aborted"`); the bound is the loop refusing to run forever
+(`endReason: "max_steps"`). The `Recorder` checks `signal?.aborted` and the step
+count at the same points in the loop, so a record in flight stops for either
+reason, and `forkTrace` saves the partial branch either way.
+
+Note the implementation detail: the signal is honoured inside the `Recorder`
+loop itself (and inside `forkTrace` right after the immediate model-call edit
+step), not by throwing a `StopRequested` sentinel out of a callback. The effect
+matches the `StopRequested` description above: on an aborted signal the loop
+stops after the current step and the partial branch is saved, a clean
+`ForkSuccess` whose branch is simply shorter.
+
+#### Tests for the step bound (written alongside the stop test)
+
+In `tests/recorder/max-steps.test.ts`:
+
+- A model that never stops ends a record run at the bound, with
+  `endReason: "max_steps"` and a step count no greater than `maxSteps`.
+- The default bound applies when none is given.
+- A runaway fork live phase ends at the bound instead of looping, returning a
+  clean `ForkSuccess` whose branch records `endReason: "max_steps"`.
+
+`tests/compare/fork-stop.test.ts` is written so that, without the stop
+behaviour, it fails on an assertion rather than by exhausting memory: its live
+adapter still returns tool-call turns, but the test aborts the signal from the
+first `onStep` call, and the step bound backstops the run so the fork cannot
+loop forever even if the abort is not honoured.
+
 ---
 
 ## The server (`src/server/`)

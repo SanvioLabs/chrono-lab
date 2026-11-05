@@ -22,6 +22,9 @@ export const MODEL_PRICES: Record<string, ModelPrice> = {
   // Stand-in / test models
   "stub": { inputUsdPerToken: 0, outputUsdPerToken: 0 },
   "fork-model": { inputUsdPerToken: 0, outputUsdPerToken: 0 },
+  // The deterministic fake model (spec 03). Zero cost, like the other
+  // stand-ins, so it never trips a cap on its own.
+  "fake": { inputUsdPerToken: 0, outputUsdPerToken: 0 },
 };
 
 // Conservative default price: use this when the model is not in the table.
