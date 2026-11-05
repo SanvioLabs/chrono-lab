@@ -15,10 +15,15 @@
 // and adds a plain note that names the cap and its limit, so the running region
 // itself says what happened in words, not colour (R-18, R-20). The note sits
 // inside the fixed-height host, so it does not move the host's box (R-11).
+//
+// Each entry names its timeline role in words from the step's own flags
+// (stepRoleWords): a prefix step reads "replayed", a live step reads "live",
+// and the edited fork-point step reads "fork point", so the one step the user
+// changed is named as the fork point here, not mislabelled "live" (R-20).
 
 import type { Step } from "../../trace/types.js";
 import type { UiCallbacks } from "../controller.js";
-import { el, stepAccessibleName } from "../a11y.js";
+import { el, stepAccessibleName, stepRoleWords } from "../a11y.js";
 
 // The cap that stopped a run: its reason and the limit in dollars. Passed only
 // when the running region is in the cap_reached state.
@@ -66,7 +71,7 @@ export function renderRunning(
   const prefixBox = el("div", "running-prefix");
   prefixBox.appendChild(el("div", "running-prefix-label", "Replayed prefix"));
   for (const step of prefix) {
-    prefixBox.appendChild(entry(step, "replayed"));
+    prefixBox.appendChild(entry(step));
   }
   region.appendChild(prefixBox);
 
@@ -76,7 +81,7 @@ export function renderRunning(
   log.setAttribute("aria-label", "live steps");
   log.setAttribute("aria-live", "polite");
   for (const step of liveSteps) {
-    const item = entry(step, "live");
+    const item = entry(step);
     item.setAttribute("role", "listitem");
     item.dataset["liveStep"] = "true";
     log.appendChild(item);
@@ -101,8 +106,12 @@ export function renderRunning(
   return region;
 }
 
-// One log/prefix entry: the step's accessible name as text, tinted by role.
-function entry(step: Step, role: "replayed" | "live"): HTMLElement {
+// One log/prefix entry: the step's accessible name as text, tinted and labelled
+// by its own role (stepRoleWords), so the edited fork-point step reads "fork
+// point" rather than "live" (R-20). data-role carries the same word for the
+// theme's tint and for the e2e test to read.
+function entry(step: Step): HTMLElement {
+  const role = stepRoleWords(step);
   const item = el("div", "running-entry");
   item.dataset["role"] = role;
   item.setAttribute("aria-label", stepAccessibleName(step, role));

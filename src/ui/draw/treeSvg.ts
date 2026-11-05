@@ -12,9 +12,18 @@
 // Node shape doubles as the role signal: a circle for a model call, a square
 // for a tool call, a rounded square for a tool result, and a diamond for the
 // fork-point step.
+//
+// The split leaves the parent at the fork-point node and lands on the branch's
+// fork diamond: both sit at the same row (the fork index), because the branch
+// column repeats the replayed prefix and the edited fork-point step is the
+// branch's first live step at that row. So the crack runs from the parent's
+// fork-point row across to the diamond's row, not back up to the branch's first
+// node. crackPoints is the pure geometry, so the endpoints are unit-tested
+// without a DOM (design.md: "lines that split from the parent at the fork
+// point", the parent line cold, the new branch warming from the fork point on).
 
 import type { Step } from "../../trace/types.js";
-import { stepAccessibleName } from "../a11y.js";
+import { stepAccessibleName, stepRoleWords } from "../a11y.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -33,6 +42,16 @@ const COL_W = 120;
 const ROW_H = 56;
 const PAD = 28;
 const R = 9;
+
+// The x centre of a column's nodes.
+export function columnX(column: number): number {
+  return PAD + column * COL_W + R;
+}
+
+// The y centre of a node at a row.
+export function rowY(row: number): number {
+  return PAD + row * ROW_H + R;
+}
 
 function svgEl(name: string): SVGElement {
   return document.createElementNS(SVG_NS, name) as SVGElement;
@@ -57,13 +76,13 @@ export function drawTree(
   svg.setAttribute("aria-label", "branch tree");
 
   for (const col of columns) {
-    const cx = PAD + col.column * COL_W + R;
+    const cx = columnX(col.column);
 
     // The spine line for the column.
     for (let i = 0; i < col.steps.length - 1; i++) {
       const step = col.steps[i];
-      const y1 = PAD + i * ROW_H + R;
-      const y2 = PAD + (i + 1) * ROW_H + R;
+      const y1 = rowY(i);
+      const y2 = rowY(i + 1);
       const line = lineEl(cx, y1, cx, y2);
       // A live segment warms to --future; else it stays --line.
       line.setAttribute(
@@ -73,24 +92,29 @@ export function drawTree(
       svg.appendChild(line);
     }
 
-    // The crack-in-glass split from the parent at the fork point.
+    // The crack-in-glass split from the parent's fork-point node to this
+    // branch's fork diamond. Both sit at col.forkIndex: the parent's fork-point
+    // row and, because the branch repeats the prefix, the branch's edited
+    // first-live step. The connector runs across at that row, leaving the
+    // parent at the fork point and landing on the diamond (not back up to the
+    // branch's first node).
     if (col.forkIndex !== null) {
       const parent = columns.find((c) => c.column === col.column - 1);
       if (parent) {
-        const px = PAD + parent.column * COL_W + R;
-        const py = PAD + col.forkIndex * ROW_H + R;
-        const ty = PAD + 0 * ROW_H + R;
+        const px = columnX(parent.column);
+        const py = rowY(col.forkIndex);
+        const ty = rowY(col.forkIndex);
         svg.appendChild(crack(px, py, cx, ty));
       }
     }
 
     // The nodes.
     col.steps.forEach((step, i) => {
-      const cy = PAD + i * ROW_H + R;
+      const cy = rowY(i);
       const node = nodeFor(step, cx, cy);
       const g = svgEl("g");
       g.setAttribute("role", "treeitem");
-      g.setAttribute("aria-label", stepAccessibleName(step, roleWords(step)));
+      g.setAttribute("aria-label", stepAccessibleName(step, stepRoleWords(step)));
       g.setAttribute("tabindex", "0");
       g.setAttribute("class", "tree-node");
       (g as SVGElement & { dataset: DOMStringMap }).dataset["runId"] = col.runId;
@@ -108,13 +132,6 @@ export function drawTree(
   }
 
   return svg;
-}
-
-// The timeline role words for a step, carried in the node's accessible name.
-function roleWords(step: Step): string {
-  if (step.edited) return "fork point";
-  if (step.live) return "live";
-  return "replayed";
 }
 
 // Builds the shape for a step: diamond for the fork point, else by kind.
@@ -174,18 +191,33 @@ function lineEl(x1: number, y1: number, x2: number, y2: number): SVGElement {
   return line;
 }
 
-// A short three-segment jag (a crack) from the parent fork point to the child's
-// first node, in --fork.
-function crack(x1: number, y1: number, x2: number, y2: number): SVGElement {
+// The points of the three-segment jag (a crack) from (x1,y1) to (x2,y2). Pure,
+// so a unit test can assert the endpoints land on the fork-point node and the
+// diamond. The first and last points are exactly the endpoints; the two middle
+// points are the jag between them. The jag reads as a crack without looking
+// noisy (design.md: "the jag is three segments").
+export function crackPoints(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): Array<[number, number]> {
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
-  const jx = mx + 6;
-  const jy = my - 4;
+  return [
+    [x1, y1],
+    [mx - 4, my + 4],
+    [mx + 6, my - 4],
+    [x2, y2],
+  ];
+}
+
+// A short three-segment jag (a crack) from the parent fork point to the child's
+// fork diamond, in --fork.
+function crack(x1: number, y1: number, x2: number, y2: number): SVGElement {
+  const pts = crackPoints(x1, y1, x2, y2);
   const poly = svgEl("polyline");
-  poly.setAttribute(
-    "points",
-    `${x1},${y1} ${mx - 4},${my + 4} ${jx},${jy} ${x2},${y2}`
-  );
+  poly.setAttribute("points", pts.map(([x, y]) => `${x},${y}`).join(" "));
   poly.setAttribute("class", "tree-crack");
   return poly;
 }

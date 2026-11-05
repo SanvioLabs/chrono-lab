@@ -58,6 +58,8 @@
 //     call, then the last one, shows the last one's messages.
 //   - "Edit the model" shows a role="textbox" name contains "model".
 //   - no edit control exists for a tool_call step or any structural field.
+//   - a tool_result step shows one editor, a role="textbox" name contains
+//     "tool result", for its output.result.
 //   - one button, name "Run forward from here", posts the fork. In demo mode a
 //     step with no prerecorded future disables this button and shows a plain
 //     note (role="note") saying the step has no prerecorded future.
@@ -66,6 +68,10 @@
 //   - the running region is role="log" (a live region) name contains "live
 //     steps"; each arriving live step is appended as an entry whose accessible
 //     name names the step, under the replayed prefix.
+//   - the replayed prefix sits above the live log; forking at step index i
+//     shows exactly i replayed entries, both while the fork runs and once it is
+//     done. The prefix entries carry data-role values ("replayed") and the live
+//     entries carry data-live-step, so the test can count each.
 //   - one button, name "Stop", posts /api/stop. Its box never moves as steps
 //     arrive (R-11). The control row it sits in keeps the same box when Stop is
 //     swapped for "Compare with parent" once the fork finishes (R-11).
@@ -269,33 +275,40 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
       lastGroup.getByRole("radio", { name: /^tool:/i })
     ).toHaveCount(1);
 
-    // Restore the selection to the first model call so the rest of the loop
-    // forks there.
-    await firstModelStep.click();
+    // ---- 3. Edit the one allowed field: the tool result (R-14). ----
+    // Fork at the tool_result step (index 2), the step the user edits in the
+    // manual run ("hello" -> "goodbye"). This gives a non-empty replayed prefix
+    // (the two steps before it), so step 4 below can check the prefix stays
+    // above the live log once the fork is done, not just while it runs. The
+    // tool_result editor is one textbox for output.result, and no more.
+    const toolResultStep = timeline.getByRole("option", {
+      name: /tool result/i,
+    });
+    await expect(toolResultStep).toHaveCount(1);
+    await toolResultStep.click();
     await expect(editRegion).toBeVisible();
 
-    // ---- 3. Edit the one allowed field: the prompt (R-14). ----
-    // The prompt editor lists messages; the last user message is selected by
-    // default. Editing changes that one message's content, not the whole array.
-    await editPrompt.click();
+    // The tool_result step offers exactly one editor, for its result. The three
+    // model_call radios are not shown here.
+    await expect(editPrompt).toHaveCount(0);
+    await expect(editModel).toHaveCount(0);
+    await expect(editSettings).toHaveCount(0);
 
-    const messageGroup = page.getByRole("radiogroup", {
-      name: /message to edit/i,
-    });
-    await expect(messageGroup).toBeVisible();
-
-    const selectedMessage = messageGroup.getByRole("radio", { checked: true });
-    // The default selection is a user message.
-    await expect(selectedMessage).toHaveAccessibleName(/user/i);
-
-    const contentBox = page.getByRole("textbox", {
-      name: /message content/i,
-    });
-    const originalContent = await contentBox.inputValue();
-    const editedContent = originalContent + " (edited for the fork)";
-    await contentBox.fill(editedContent);
+    const resultBox = page.getByRole("textbox", { name: /tool result/i });
+    await expect(resultBox).toBeVisible();
+    const originalResult = await resultBox.inputValue();
+    const editedResult = "goodbye";
+    expect(editedResult).not.toBe(originalResult);
+    await resultBox.fill(editedResult);
     // Only this field changed: its value now holds the edit.
-    await expect(contentBox).toHaveValue(editedContent);
+    await expect(resultBox).toHaveValue(editedResult);
+
+    // The fork point is step index 2, so the replayed prefix is the two steps
+    // before it. The running region must show exactly that many prefix entries,
+    // both while the fork runs and after it finishes (the done regression,
+    // where the prefix dropped to zero once the new branch loaded and cleared
+    // the selection).
+    const forkIndex = 2;
 
     // ---- 4. Run forward (R-15). ----
     const runButton = page.getByRole("button", {
@@ -329,6 +342,13 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
     const liveLog = page.getByRole("log", { name: /live steps/i });
     await expect(liveLog).toBeVisible();
 
+    // The replayed prefix above the live log holds exactly the steps before the
+    // fork point (forkIndex). Count the prefix entries while the fork runs.
+    const prefixEntries = runningRegion.locator(
+      '.running-prefix [data-role="replayed"]'
+    );
+    await expect(prefixEntries).toHaveCount(forkIndex);
+
     // As steps arrive, the Stop button does not move (R-11). Measure the Stop
     // box before and after at least one step lands, while Stop is still on
     // screen.
@@ -348,6 +368,22 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
       name: /compare with parent/i,
     });
     await expect(compareButton).toBeVisible({ timeout: 30_000 });
+
+    // The replayed prefix stays above the live log once the fork is done: still
+    // exactly forkIndex entries, not zero. This is the done regression: loading
+    // the finished branch cleared the selection, so the prefix dropped to []
+    // until it was read from the saved branch instead.
+    await expect(prefixEntries).toHaveCount(forkIndex);
+    // And the live steps are listed below the prefix, so the done region shows
+    // the replayed prefix above the live future, not the live steps alone.
+    await expect(liveEntries.first()).toBeVisible();
+
+    // The edited fork-point step is named "fork point" in the running log, not
+    // "live": it is the step the user changed. The entry carries
+    // data-role="fork point" and its text names the role (R-20).
+    const forkEntry = runningRegion.locator('[data-role="fork point"]');
+    await expect(forkEntry.first()).toBeVisible();
+    await expect(forkEntry.first()).toHaveText(/fork point/i);
 
     // Stop has been swapped for Compare, and Stop is gone. The control row that
     // held Stop still holds the same box: the reserved-space promise for this
@@ -375,9 +411,16 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
     await expect(columnB).toBeVisible();
 
     // The first difference is marked in text (R-20), not colour alone. The
-    // edited prompt changes the forked future, so a first difference exists.
+    // edited tool result changes the forked future, so a first difference
+    // exists.
     await expect(
       page.getByText(/first difference/i).first()
+    ).toBeVisible();
+
+    // The fork-point row is named "fork point" in text in the compare columns,
+    // so the edited step is named as the fork point here too (R-20).
+    await expect(
+      compareRegion.getByText(/fork point/i).first()
     ).toBeVisible();
 
     // Each column shows final output, tokens, cost and duration.

@@ -3,7 +3,10 @@
 //
 // Two columns, one per branch, aligned so the fork-point row lines up. The row
 // at firstDiff.index is highlighted on both sides and labelled "first
-// difference" in text, not colour alone (R-20). A footer per column shows the
+// difference" in text, not colour alone (R-20). The fork-point row (the edited
+// step) carries a "fork point" label in text too, so the step the user changed
+// is named in words here as it is in the tree and the running log (R-20),
+// matching the shared vocabulary (stepRoleWords). A footer per column shows the
 // final output, total tokens, total cost and total duration from
 // compareBranches. When firstDiff is null the highlight area reads "these
 // branches do not differ" rather than being blank. The host in main.ts carries
@@ -11,7 +14,7 @@
 
 import type { Trace, Step } from "../../trace/types.js";
 import type { CompareResult, BranchStats } from "../../compare/compare.js";
-import { el, stepAccessibleName } from "../a11y.js";
+import { el, stepAccessibleName, stepRoleWords } from "../a11y.js";
 
 // Renders the compare region content for two branches and the compare result.
 // a is the parent (branch A), b the new branch (branch B).
@@ -72,6 +75,14 @@ function renderColumn(
       const mark = el("span", "compare-mark", "first difference");
       mark.setAttribute("role", "mark");
       row.appendChild(mark);
+    }
+    // The fork-point row (the edited step) is named in words, so the step the
+    // user changed reads "fork point" here as it does in the tree and the
+    // running log (R-20). The label is text, not colour alone.
+    if (step && step.edited) {
+      const forkMark = el("span", "compare-fork-mark", stepRoleWords(step));
+      forkMark.dataset["role"] = "fork point";
+      row.appendChild(forkMark);
     }
     row.appendChild(
       el(

@@ -532,6 +532,12 @@ body {
   border-left-color: var(--future);
   animation: fork-draw var(--fork-draw-ms) ease-out;
 }
+/* The edited fork-point step reads "fork point" (stepRoleWords) and tints with
+   --fork, matching the tree's fork marker and the timeline (R-20, R-21). */
+.running-entry[data-role="fork point"] {
+  border-left-color: var(--fork);
+  animation: fork-draw var(--fork-draw-ms) ease-out;
+}
 
 /* The cap note names the cap in words below the live log (R-18, R-20). It sits
    inside the fixed-height running host, so it scrolls with the log and never
@@ -593,6 +599,18 @@ body {
   font-size: 11px;
 }
 
+/* The fork-point label in a compare row, naming the edited step in words. The
+   --fork tint matches the tree marker and the running log; the word carries the
+   meaning (R-20). */
+.compare-fork-mark {
+  display: inline-block;
+  color: var(--fork);
+  font-weight: 700;
+  margin-right: var(--space-2);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
 .compare-footer {
   margin-top: var(--space-3);
 }
@@ -625,7 +643,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .running-entry[data-role="live"] {
+  .running-entry[data-role="live"],
+  .running-entry[data-role="fork point"] {
     animation: none;
   }
 }

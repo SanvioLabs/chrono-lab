@@ -74,6 +74,16 @@ let lastEditStepId: string | null = null;
 // starts.
 let capPartialBranch: { prefix: Step[]; live: Step[] } | null = null;
 
+// The finished branch split into its replayed prefix and live steps, read from
+// the saved branch the same way the cap path reads its partial branch. The
+// running region draws its prefix from this once the fork is done: loadTrace
+// clears state.selectedStepId when the new branch loads, so the prefix cannot
+// be re-derived from the selection, and a full re-render (from refreshTraceList)
+// would otherwise drop the prefix to []. Reading the prefix from the saved
+// branch keeps the replayed steps above the live log after the run finishes.
+// Cleared when a new record or fork starts.
+let donePartialBranch: { prefix: Step[]; live: Step[] } | null = null;
+
 // The callbacks the screens call. Each mutates state and re-renders.
 const callbacks: UiCallbacks = {
   record,
@@ -95,6 +105,7 @@ async function record(task: string): Promise<void> {
   state.selectedStepId = null;
   state.edit = null;
   capPartialBranch = null;
+  donePartialBranch = null;
   render();
 
   const streamId = api.newId();
@@ -161,6 +172,7 @@ async function runForward(): Promise<void> {
 
   state.running = { status: "ready", value: [] };
   capPartialBranch = null;
+  donePartialBranch = null;
   render();
 
   const streamId = api.newId();
@@ -177,8 +189,16 @@ async function runForward(): Promise<void> {
       activeForkId = null;
       activeStream = null;
       parentRunIdForCompare = parentRunId;
+      // Load the saved branch, then read its replayed prefix and live steps
+      // from the branch itself (the same approach as the cap path): loadTrace
+      // clears state.selectedStepId, so runningPrefix can no longer derive the
+      // prefix from the selection, and the next full render would drop it to
+      // []. donePartialBranch holds the split read from the saved branch, so
+      // the replayed prefix stays above the live log once the fork is done.
       await loadTrace(runId, { asCurrent: true, forkedFrom: parentRunId });
-      renderRunningRegion(prefix, true);
+      const branch = tracesById.get(runId);
+      donePartialBranch = branch ? splitBranch(branch) : { prefix, live: [] };
+      renderRunningRegion(donePartialBranch.prefix, true);
       await refreshTraceList();
     },
     onCap: async (reason, limitUsd, runId) => {
@@ -499,13 +519,22 @@ function render(): void {
   renderCompareRegion();
 }
 
-// The replayed prefix the running region draws above the live log. In the
-// cap_reached state it is the prefix read from the saved partial branch, so the
-// kept branch is shown as saved (R-18). Otherwise it is the prefix of the
-// selected fork point in the current trace.
+// The replayed prefix the running region draws above the live log. The prefix
+// is read from the saved branch once a run has one, so it survives the full
+// re-render that follows loading the finished branch (which clears the
+// selection). In order of precedence:
+//   - cap_reached: the prefix of the saved partial branch (R-18).
+//   - a finished fork: the prefix of the saved finished branch (donePartial-
+//     Branch), so the replayed steps stay above the live log after the run
+//     ends, not dropped to [] when the selection is cleared.
+//   - otherwise: the prefix of the selected fork point in the current trace,
+//     used while the fork is still streaming (the selection is still set).
 function runningPrefix(): Step[] {
   if (state.running.status === "cap_reached" && capPartialBranch) {
     return capPartialBranch.prefix;
+  }
+  if (donePartialBranch) {
+    return donePartialBranch.prefix;
   }
   return state.selectedStepId !== null
     ? currentPrefix(state.selectedStepId)

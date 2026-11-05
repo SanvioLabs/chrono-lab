@@ -92,6 +92,19 @@ export function stepKindWords(step: Step): string {
   }
 }
 
+// The timeline role of a step in words, from its flags, so the fork-point step,
+// a replayed step and a live step each read as what they are, never colour or
+// shape alone (R-20). The edited step is the fork point the user changed, so it
+// reads "fork point" even though it is re-run live; a step that is live but not
+// edited reads "live"; everything else is a replayed prefix step. The tree, the
+// running log and the compare columns all use this one function so the same
+// word is used for the same step everywhere (R-20 vocabulary).
+export function stepRoleWords(step: Step): string {
+  if (step.edited) return "fork point";
+  if (step.live) return "live";
+  return "replayed";
+}
+
 // A short, human summary of a step's content (R-12's per-kind rule).
 export function stepSummary(step: Step): string {
   switch (step.kind) {
