@@ -13,7 +13,8 @@ changed, what it cost, and where they split.
 Built for [Kiroween 2026](https://kiroween.devpost.com/), in
 [Kiro](https://kiro.dev).
 
-> Status: starter kit. Nothing is built yet. `KICKOFF.md` says how to begin.
+> Status: in progress. Recording, replay, fork and compare are built (specs 01
+> and 02). The lab UI (spec 03) is being built. `KICKOFF.md` says how to join in.
 
 ## What it does
 
