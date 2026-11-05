@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 420" width="1280" height="420" role="img" aria-labelledby="t d">
+  <title id="t">Chrono-Lab</title>
+  <desc id="d">A glowing lab clock with a rewind arrow. A timeline of blue steps runs out of it, splits at a purple fork point with a spark of lightning, and becomes two futures: the original in blue and a new one in amber.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#070b18"/>
+      <stop offset="1" stop-color="#141a33"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#8be9ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#8be9ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="face" cx="0.45" cy="0.4" r="0.65">
+      <stop offset="0" stop-color="#1d2650"/>
+      <stop offset="1" stop-color="#0b1020"/>
+    </radialGradient>
+    <linearGradient id="warm" x1="738" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c792ff"/>
+      <stop offset="1" stop-color="#ffb24c"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8be9ff"/>
+    </marker>
+    <mask id="crescent">
+      <rect width="1280" height="420" fill="#fff"/>
+      <circle cx="1196" cy="62" r="24" fill="#000"/>
+    </mask>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#sky)"/>
+
+  <!-- stars -->
+  <g fill="#e8ecf5">
+    <circle cx="44" cy="40" r="1.4" opacity="0.7"/>
+    <circle cx="120" cy="88" r="1" opacity="0.5"/>
+    <circle cx="298" cy="30" r="1.2" opacity="0.6"/>
+    <circle cx="560" cy="24" r="1" opacity="0.5"/>
+    <circle cx="640" cy="150" r="1.3" opacity="0.6"/>
+    <circle cx="760" cy="40" r="1.6" opacity="0.8"/>
+    <circle cx="842" cy="118" r="1" opacity="0.4"/>
+    <circle cx="930" cy="30" r="1.2" opacity="0.6"/>
+    <circle cx="1010" cy="96" r="1" opacity="0.5"/>
+    <circle cx="1100" cy="132" r="1.4" opacity="0.6"/>
+    <circle cx="1250" cy="150" r="1" opacity="0.5"/>
+    <circle cx="1236" cy="380" r="1.2" opacity="0.5"/>
+    <circle cx="980" cy="392" r="1" opacity="0.4"/>
+    <circle cx="610" cy="384" r="1.3" opacity="0.5"/>
+    <circle cx="420" cy="360" r="1" opacity="0.4"/>
+    <circle cx="36" cy="390" r="1.2" opacity="0.5"/>
+  </g>
+
+  <!-- moon and bats -->
+  <circle cx="1180" cy="70" r="28" fill="#ffe7b8" mask="url(#crescent)" opacity="0.9"/>
+  <g fill="#0b1020" stroke="#9aa6c0" stroke-width="1" stroke-linejoin="round">
+    <path transform="translate(1060 54) scale(1.1)" d="M0,6 Q7,-4 14,3 Q16,-2 18,3 Q20,-2 22,3 Q29,-4 36,6 Q28,4 25,10 Q21,7 18,11 Q15,7 11,10 Q8,4 0,6 Z"/>
+    <path transform="translate(1110 104) scale(0.75) rotate(-12)" d="M0,6 Q7,-4 14,3 Q16,-2 18,3 Q20,-2 22,3 Q29,-4 36,6 Q28,4 25,10 Q21,7 18,11 Q15,7 11,10 Q8,4 0,6 Z"/>
+  </g>
+
+  <!-- the lab clock -->
+  <circle cx="170" cy="250" r="160" fill="url(#halo)"/>
+  <circle cx="170" cy="250" r="100" fill="url(#face)" stroke="#8be9ff" stroke-width="3" filter="url(#glow)"/>
+  <circle cx="170" cy="250" r="88" fill="none" stroke="#636f9c" stroke-width="1.5" stroke-dasharray="2 6"/>
+  <g stroke="#9aa6c0" stroke-width="3" stroke-linecap="round">
+    <line x1="170" y1="168" x2="170" y2="180"/>
+    <line x1="252" y1="250" x2="240" y2="250"/>
+    <line x1="170" y1="332" x2="170" y2="320"/>
+    <line x1="88" y1="250" x2="100" y2="250"/>
+  </g>
+  <g stroke="#636f9c" stroke-width="2" stroke-linecap="round">
+    <line x1="211" y1="179" x2="208" y2="184"/>
+    <line x1="241" y1="209" x2="236" y2="212"/>
+    <line x1="241" y1="291" x2="236" y2="288"/>
+    <line x1="211" y1="321" x2="208" y2="316"/>
+    <line x1="129" y1="321" x2="132" y2="316"/>
+    <line x1="99" y1="291" x2="104" y2="288"/>
+    <line x1="99" y1="209" x2="104" y2="212"/>
+    <line x1="129" y1="179" x2="132" y2="184"/>
+  </g>
+  <line x1="170" y1="250" x2="128" y2="216" stroke="#e8ecf5" stroke-width="6" stroke-linecap="round"/>
+  <line x1="170" y1="250" x2="170" y2="186" stroke="#ffb24c" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="170" cy="250" r="7" fill="#c792ff"/>
+  <!-- rewind arrow, running counterclockwise around the clock -->
+  <path d="M232,140 A126,126 0 0 0 52,293" fill="none" stroke="#8be9ff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" opacity="0.9"/>
+
+  <!-- title -->
+  <text x="330" y="92" fill="#e8ecf5" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="60" font-weight="800" letter-spacing="1">Chrono-Lab</text>
+  <text x="333" y="130" fill="#9aa6c0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="22">Rewind a run. Change one step. Compare the futures.</text>
+
+  <!-- the recorded timeline -->
+  <line x1="272" y1="250" x2="702" y2="250" stroke="#636f9c" stroke-width="3"/>
+  <g fill="#4ea3ff">
+    <circle cx="350" cy="250" r="9"/>
+    <circle cx="440" cy="250" r="9"/>
+    <circle cx="530" cy="250" r="9"/>
+    <circle cx="620" cy="250" r="9"/>
+  </g>
+
+  <!-- branch one: the original future -->
+  <path d="M738,250 C780,250 790,190 840,190 L1180,190" fill="none" stroke="#4ea3ff" stroke-width="3" opacity="0.85"/>
+  <g fill="#4ea3ff">
+    <circle cx="880" cy="190" r="9"/>
+    <circle cx="980" cy="190" r="9"/>
+    <circle cx="1080" cy="190" r="9"/>
+  </g>
+  <circle cx="1180" cy="190" r="12" fill="none" stroke="#4ea3ff" stroke-width="3"/>
+  <text x="1200" y="168" text-anchor="end" fill="#9aa6c0" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">the original</text>
+
+  <!-- branch two: the new future, warming from the fork -->
+  <path d="M738,250 L770,272 L792,262 L822,320 L1180,320" fill="none" stroke="url(#warm)" stroke-width="3" stroke-linejoin="round" filter="url(#glow)"/>
+  <g fill="#ffb24c" filter="url(#glow)">
+    <circle cx="880" cy="320" r="9"/>
+    <circle cx="980" cy="320" r="9"/>
+    <circle cx="1080" cy="320" r="9"/>
+  </g>
+  <g transform="translate(1180 320)" fill="#ffb24c" filter="url(#glow)">
+    <path d="M0,-16 L4,-4 L16,0 L4,4 L0,16 L-4,4 L-16,0 L-4,-4 Z"/>
+  </g>
+  <text x="1200" y="360" text-anchor="end" fill="#ffb24c" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">the new future</text>
+
+  <!-- first difference between the two futures -->
+  <g fill="none" stroke="#ff6b7a" stroke-width="2" stroke-dasharray="4 4">
+    <circle cx="880" cy="190" r="17"/>
+    <circle cx="880" cy="320" r="17"/>
+  </g>
+
+  <!-- the fork point, with a spark -->
+  <polygon points="720,230 740,250 720,270 700,250" fill="#c792ff" filter="url(#glow)"/>
+  <polygon points="736,196 724,222 734,222 726,244 748,214 737,214 746,196" fill="#ffb24c" filter="url(#glow)"/>
+  <text x="720" y="296" text-anchor="middle" fill="#c792ff" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">change one step</text>
+</svg>
