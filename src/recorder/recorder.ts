@@ -16,10 +16,19 @@ import type {
 import { TRACE_VERSION } from "../trace/types.js";
 import { saveTrace } from "../trace/save.js";
 
-interface RecorderOptions {
+export interface RecorderOptions {
   modelAdapter: ModelAdapter;
   toolRegistry: ToolRegistry;
   traceDir: string;
+  // Defaults to "main" when absent.
+  branch?: string;
+  // Defaults to null when absent.
+  forkPointId?: string;
+  // Model name stamped on each model_call step. Defaults to "stub".
+  modelName?: string;
+  // Called after each step is recorded. The caller can collect steps here
+  // even if the loop later throws, so partial progress is never lost.
+  onStep?: (step: Step) => void;
 }
 
 // The minimal agent loop used in this spec:
@@ -30,28 +39,91 @@ export class Recorder {
   private readonly modelAdapter: ModelAdapter;
   private readonly toolRegistry: ToolRegistry;
   private readonly traceDir: string;
+  private readonly branch: string;
+  private readonly forkPointId: string | null;
+  private readonly modelName: string;
+  private readonly onStep: ((step: Step) => void) | undefined;
 
   constructor(options: RecorderOptions) {
     this.modelAdapter = options.modelAdapter;
     this.toolRegistry = options.toolRegistry;
     this.traceDir = options.traceDir;
+    this.branch = options.branch ?? "main";
+    this.forkPointId = options.forkPointId ?? null;
+    this.modelName = options.modelName ?? "stub";
+    this.onStep = options.onStep;
   }
 
   // Record a full agent run for the given task string.
   // Returns the saved Trace. Propagates any error from the model or tools.
   async run(task: string): Promise<Trace> {
     const runId = randomUUID();
-    const steps: Step[] = [];
-    let stepIndex = 0;
-    let parentId: string | null = null;
 
-    const nextId = (): string => `${runId}-${stepIndex++}`;
-
-    // Build the initial message list.
     const messages: ModelCallInput["messages"] = [
       { role: "system", content: "You are a helpful assistant." },
       { role: "user", content: task },
     ];
+
+    const steps = await this.runLoop(runId, messages, 0, false);
+
+    const trace: Trace = {
+      version: TRACE_VERSION,
+      runId,
+      createdAt: new Date().toISOString(),
+      steps,
+    };
+
+    const filePath = path.join(this.traceDir, `${runId}.json`);
+    await saveTrace(trace, filePath);
+
+    return trace;
+  }
+
+  // Start the agent loop with the supplied message list, beginning step ids at
+  // firstStepIndex. Used by forkTrace to continue from the fork point onward.
+  // Steps written by continueFrom carry live: true and edited: false.
+  // Returns a Trace containing only the steps this call produced.
+  async continueFrom(
+    messages: ModelCallInput["messages"],
+    firstStepIndex: number
+  ): Promise<Trace> {
+    const runId = randomUUID();
+
+    const steps = await this.runLoop(
+      runId,
+      [...messages],
+      firstStepIndex,
+      true
+    );
+
+    // Return the trace without saving: forkTrace assembles and saves the full
+    // branch trace.
+    return {
+      version: TRACE_VERSION,
+      runId,
+      createdAt: new Date().toISOString(),
+      steps,
+    };
+  }
+
+  // Shared loop body used by both run and continueFrom.
+  // live: false for run steps, true for continueFrom steps.
+  private async runLoop(
+    runId: string,
+    messages: ModelCallInput["messages"],
+    startIndex: number,
+    live: boolean
+  ): Promise<Step[]> {
+    const steps: Step[] = [];
+    let stepIndex = startIndex;
+    let parentId: string | null = null;
+
+    const nextId = (): string => `${runId}-${stepIndex++}`;
+
+    const pushStep = (step: Step): void => {
+      steps.push(step);
+      this.onStep?.(step);
+    };
 
     let continueLoop = true;
 
@@ -59,7 +131,7 @@ export class Recorder {
       // Model call
       const modelInput: ModelCallInput = {
         messages: [...messages],
-        model: "stub",
+        model: this.modelName,
         settings: {},
       };
 
@@ -73,8 +145,8 @@ export class Recorder {
         runId,
         parentId,
         kind: "model_call",
-        branch: "main",
-        forkPointId: null,
+        branch: this.branch,
+        forkPointId: this.forkPointId,
         durationMs: modelDuration,
         model: modelInput.model,
         settings: modelInput.settings,
@@ -82,9 +154,11 @@ export class Recorder {
         cost: 0,
         input: modelInput,
         output: modelOutput,
+        live,
+        edited: false,
       };
 
-      steps.push(modelStep);
+      pushStep(modelStep);
       parentId = modelStepId;
 
       // Append the assistant reply to the running message list.
@@ -105,8 +179,8 @@ export class Recorder {
             runId,
             parentId,
             kind: "tool_call",
-            branch: "main",
-            forkPointId: null,
+            branch: this.branch,
+            forkPointId: this.forkPointId,
             durationMs: 0, // filled in after the call
             model: null,
             settings: null,
@@ -118,13 +192,13 @@ export class Recorder {
               arguments: toolCallSpec.arguments,
             },
             output: null,
+            live,
+            edited: false,
           };
 
           const toolImpl = this.toolRegistry[toolCallSpec.name];
           if (!toolImpl) {
-            throw new Error(
-              `Unknown tool: ${toolCallSpec.name}`
-            );
+            throw new Error(`Unknown tool: ${toolCallSpec.name}`);
           }
 
           const toolResult = await toolImpl(toolCallSpec.arguments);
@@ -132,7 +206,7 @@ export class Recorder {
 
           // Patch in the measured duration.
           toolCallStep.durationMs = toolDuration;
-          steps.push(toolCallStep);
+          pushStep(toolCallStep);
           parentId = toolCallStepId;
 
           // Tool result step
@@ -142,8 +216,8 @@ export class Recorder {
             runId,
             parentId,
             kind: "tool_result",
-            branch: "main",
-            forkPointId: null,
+            branch: this.branch,
+            forkPointId: this.forkPointId,
             durationMs: 0,
             model: null,
             settings: null,
@@ -151,9 +225,11 @@ export class Recorder {
             cost: null,
             input: { toolCallId: toolCallSpec.id },
             output: { result: toolResult, isError: false },
+            live,
+            edited: false,
           };
 
-          steps.push(toolResultStep);
+          pushStep(toolResultStep);
           parentId = toolResultStepId;
 
           // Add the tool result to the message list for the next model call.
@@ -169,16 +245,6 @@ export class Recorder {
       }
     }
 
-    const trace: Trace = {
-      version: TRACE_VERSION,
-      runId,
-      createdAt: new Date().toISOString(),
-      steps,
-    };
-
-    const filePath = path.join(this.traceDir, `${runId}.json`);
-    await saveTrace(trace, filePath);
-
-    return trace;
+    return steps;
   }
 }

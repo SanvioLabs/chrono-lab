@@ -99,6 +99,8 @@ const arbModelCallStep = (
           message: { role: "assistant", content: r.content },
           finishReason: r.finishReason,
         },
+        live: false,
+        edited: false,
       })
     );
 
@@ -132,6 +134,8 @@ const arbToolCallStep = (
           arguments: {},
         },
         output: null,
+        live: false,
+        edited: false,
       })
     );
 
@@ -162,6 +166,8 @@ const arbToolResultStep = (
         cost: null,
         input: { toolCallId },
         output: { result: r.result, isError: r.isError },
+        live: false,
+        edited: false,
       })
     );
 
@@ -211,7 +217,7 @@ const arbTrace = (): fc.Arbitrary<Trace> =>
         }));
       })
       .map(({ steps }) => ({
-        version: "1.0.0",
+        version: "1.1.0",
         runId,
         createdAt: new Date(0).toISOString(),
         steps,

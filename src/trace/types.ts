@@ -1,7 +1,7 @@
 // src/trace/types.ts
 // The trace schema. This is the contract all other modules read and write.
 
-export const TRACE_VERSION = "1.0.0";
+export const TRACE_VERSION = "1.1.0";
 
 // Step kinds
 export type StepKind = "model_call" | "tool_call" | "tool_result";
@@ -44,6 +44,8 @@ export interface ModelCallOutput {
   finishReason: string;
   // present when finishReason === "tool_calls"
   toolCalls?: ToolCallSpec[];
+  // actual token counts reported by the model; absent when unavailable
+  tokens?: { input: number; output: number };
 }
 
 export interface ToolCallSpec {
@@ -84,6 +86,10 @@ interface BaseStep {
   // "main" for the initial run; branch id after a fork
   branch: string;
   forkPointId: string | null;
+  // false for recorded/replayed steps; true for live fork steps
+  live: boolean;
+  // true for the step at the fork point
+  edited: boolean;
 }
 
 export interface ModelCallStep extends BaseStep {
@@ -126,4 +132,8 @@ export interface Trace {
   // ISO-8601
   createdAt: string;
   steps: Step[];
+  // absent on root runs
+  parentRunId?: string;
+  // absent on root runs
+  forkPointStepId?: string;
 }
