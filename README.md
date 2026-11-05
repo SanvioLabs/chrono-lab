@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Chrono-Lab: a lab clock with a rewind arrow, and a timeline that splits at one changed step into the original future and a new one" width="100%">
+</p>
+
 # Chrono-Lab
 
 A time machine for AI agents. Rewind a run, change one step, and compare the
