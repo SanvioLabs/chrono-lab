@@ -12,6 +12,9 @@
 // record, so the loop stays deterministic and still finishes well inside the
 // 30 s compare wait.
 //
+// This file pins its own baseURL to the full-loop server's port (E2E_PORT, set
+// once by the Playwright config), so it never hits the cap or demo server.
+//
 // =====================================================================
 // THE CONTRACT THE UI MUST MEET (roles and accessible names)
 // =====================================================================
@@ -51,6 +54,8 @@
 //     role and a snippet; the last user message is selected by default. Only
 //     the selected message's content is in an editable role="textbox" name
 //     contains "message content"; the others are read-only.
+//   - the editor follows a model-to-model selection: selecting the first model
+//     call, then the last one, shows the last one's messages.
 //   - "Edit the model" shows a role="textbox" name contains "model".
 //   - no edit control exists for a tool_call step or any structural field.
 //   - one button, name "Run forward from here", posts the fork. In demo mode a
@@ -85,6 +90,11 @@
 // =====================================================================
 
 import { test, expect, type Page, type Locator } from "@playwright/test";
+
+// Pin this file to the full-loop server. E2E_PORT is set once by the Playwright
+// config in the main process and inherited by every worker.
+const PORT = process.env.E2E_PORT;
+test.use({ baseURL: `http://127.0.0.1:${PORT}` });
 
 const TASK = "summarise the meeting notes";
 
@@ -148,6 +158,13 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
     await expect(runningRegion).toBeAttached();
     await expect(compareRegion).toBeAttached();
 
+    // In normal (fake) mode the banner slot is attached and empty (reserved):
+    // no "demo mode" text, so the slot holds its box without announcing
+    // anything (R-17). The host carries role="status" and stays present.
+    await expect(banner).toHaveAttribute("role", "status");
+    await expect(banner).toHaveText("");
+    await expect(banner.getByText(/demo mode/i)).toHaveCount(0);
+
     const reserved = {
       banner,
       timeline: timelineRegion,
@@ -209,6 +226,53 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
     await expect(
       page.getByRole("textbox", { name: /tool call|arguments|step id|branch/i })
     ).toHaveCount(0);
+
+    // The editor follows a model-to-model selection: selecting the first model
+    // call, then the last one, shows the last one's messages. The last model
+    // call (the one after the tool result) carries an assistant turn and a tool
+    // message; the first carries only system and user, so the two resolve to
+    // visibly different editors. This is the real-render check for the pure
+    // resolveEditStep unit test (tests/ui/editTarget.test.ts).
+    const modelOptions = timeline.getByRole("option", { name: /model call/i });
+    await expect(modelOptions).toHaveCount(2);
+    const lastModelStep = modelOptions.last();
+
+    // Open the first model call's prompt editor: only system and user, so no
+    // tool message radio. Opening the editor pulls focus into it (R-19), so
+    // focus is now outside the timeline listbox.
+    await editPrompt.click();
+    const firstGroup = page.getByRole("radiogroup", {
+      name: /message to edit/i,
+    });
+    await expect(
+      firstGroup.getByRole("radio", { name: /^tool:/i })
+    ).toHaveCount(0);
+
+    // Picking an option after a model call's editor has focus selects that
+    // option (Bug 2). Focus is inside the first step's prompt editor when this
+    // click lands, which is the exact condition that used to re-select the
+    // previously selected option: the listbox focus handler ran with the stale
+    // active index and scrolled the old option under the pointer. Assert the
+    // pressed option becomes the selected one before opening its editor.
+    await lastModelStep.click();
+    await expect(lastModelStep).toHaveAttribute("aria-selected", "true");
+    await expect(firstModelStep).toHaveAttribute("aria-selected", "false");
+
+    // Open the last model call's prompt editor: it has an assistant turn and a
+    // tool message the first did not.
+    await editPrompt.click();
+    const lastGroup = page.getByRole("radiogroup", { name: /message to edit/i });
+    await expect(
+      lastGroup.getByRole("radio", { name: /^assistant:/i })
+    ).toHaveCount(1);
+    await expect(
+      lastGroup.getByRole("radio", { name: /^tool:/i })
+    ).toHaveCount(1);
+
+    // Restore the selection to the first model call so the rest of the loop
+    // forks there.
+    await firstModelStep.click();
+    await expect(editRegion).toBeVisible();
 
     // ---- 3. Edit the one allowed field: the prompt (R-14). ----
     // The prompt editor lists messages; the last user message is selected by

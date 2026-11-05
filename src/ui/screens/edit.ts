@@ -18,6 +18,13 @@
 // a step is editable only when its id is in demoMode.forkableStepIds; otherwise
 // the run action is disabled with a plain note. One button, "Run forward from
 // here", posts the fork. The region host in main.ts carries data-region="edit".
+//
+// focusOnMount controls whether the editor pulls focus into its first field
+// when it renders. main.ts passes true only when the selected step changed, so
+// opening a step (by click or Enter) lands the keyboard there (R-19) while an
+// incidental re-render (a streamed live step, a trace-list refresh) leaves the
+// user's focus where they put it. A radio click inside the editor always moves
+// focus to the field it opens, since that is a direct user action.
 
 import type {
   Step,
@@ -33,11 +40,14 @@ import { el, focus } from "../a11y.js";
 
 type ActiveField = "prompt" | "model" | "settings";
 
-// Renders the edit region content for the selected step.
+// Renders the edit region content for the selected step. focusOnMount is true
+// only when the selected step changed, so focus moves into the editor on open
+// but not on an incidental re-render.
 export function renderEdit(
   step: Step,
   demoMode: DemoMode,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): HTMLElement {
   const region = el("div", "edit");
 
@@ -59,9 +69,14 @@ export function renderEdit(
     demoMode.active && !demoMode.forkableStepIds.includes(step.id);
 
   if (step.kind === "model_call") {
-    renderModelCallEditor(region, step as ModelCallStep, callbacks);
+    renderModelCallEditor(region, step as ModelCallStep, callbacks, focusOnMount);
   } else {
-    renderToolResultEditor(region, step as ToolResultStep, callbacks);
+    renderToolResultEditor(
+      region,
+      step as ToolResultStep,
+      callbacks,
+      focusOnMount
+    );
   }
 
   // The run action. Labelled in words (R-21), disabled in demo mode for a step
@@ -92,7 +107,8 @@ export function renderEdit(
 function renderModelCallEditor(
   region: HTMLElement,
   step: ModelCallStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): void {
   let active: ActiveField = "prompt";
 
@@ -127,7 +143,8 @@ function renderModelCallEditor(
           r.getAttribute("aria-label") === f.label ? "true" : "false"
         );
       }
-      fieldHost.replaceChildren(buildField(active, step, callbacks));
+      // A radio click is a direct user action, so the opened field takes focus.
+      fieldHost.replaceChildren(buildField(active, step, callbacks, true));
     });
     radios.push(radio);
     picker.appendChild(radio);
@@ -135,25 +152,27 @@ function renderModelCallEditor(
 
   region.appendChild(picker);
   region.appendChild(fieldHost);
-  fieldHost.appendChild(buildField(active, step, callbacks));
+  fieldHost.appendChild(buildField(active, step, callbacks, focusOnMount));
 }
 
 // Builds the editor for the currently active model_call field.
 function buildField(
   active: ActiveField,
   step: ModelCallStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): HTMLElement {
-  if (active === "prompt") return buildPromptEditor(step, callbacks);
-  if (active === "model") return buildModelEditor(step, callbacks);
-  return buildSettingsEditor(step, callbacks);
+  if (active === "prompt") return buildPromptEditor(step, callbacks, focusOnMount);
+  if (active === "model") return buildModelEditor(step, callbacks, focusOnMount);
+  return buildSettingsEditor(step, callbacks, focusOnMount);
 }
 
 // The prompt editor: a radiogroup of messages, the last user message selected
 // by default; only the selected message's content is editable.
 function buildPromptEditor(
   step: ModelCallStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): HTMLElement {
   const host = el("div", "prompt-editor");
 
@@ -236,14 +255,15 @@ function buildPromptEditor(
   textbox.value = first ? first.content : "";
   renderReadonly();
   stageEdit();
-  focus(textbox);
+  if (focusOnMount) focus(textbox);
 
   return host;
 }
 
 function buildModelEditor(
   step: ModelCallStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): HTMLElement {
   const host = el("div", "model-editor");
   host.appendChild(el("label", "model-label", "Model"));
@@ -263,13 +283,14 @@ function buildModelEditor(
   input.addEventListener("input", stage);
   host.appendChild(input);
   stage();
-  focus(input);
+  if (focusOnMount) focus(input);
   return host;
 }
 
 function buildSettingsEditor(
   step: ModelCallStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): HTMLElement {
   const host = el("div", "settings-editor");
   host.appendChild(el("div", "settings-label", "Settings (JSON)"));
@@ -297,7 +318,7 @@ function buildSettingsEditor(
   host.appendChild(textbox);
   host.appendChild(warn);
   stage();
-  focus(textbox);
+  if (focusOnMount) focus(textbox);
   return host;
 }
 
@@ -305,7 +326,8 @@ function buildSettingsEditor(
 function renderToolResultEditor(
   region: HTMLElement,
   step: ToolResultStep,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  focusOnMount: boolean
 ): void {
   const host = el("div", "result-editor");
   host.appendChild(el("label", "result-label", "Tool result"));
@@ -331,7 +353,7 @@ function renderToolResultEditor(
   host.appendChild(textbox);
   region.appendChild(host);
   stage();
-  focus(textbox);
+  if (focusOnMount) focus(textbox);
 }
 
 // --- helpers ---

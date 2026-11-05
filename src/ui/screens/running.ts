@@ -9,20 +9,35 @@
 // Stop button around (R-11); the e2e test measures the Stop button's box as
 // steps arrive. On the terminal event the caller moves the region to ready
 // (offering compare), cap_reached or error.
+//
+// When a spend cap is reached the caller passes capInfo: the region keeps the
+// partial branch it has (the replayed prefix plus any live step that landed)
+// and adds a plain note that names the cap and its limit, so the running region
+// itself says what happened in words, not colour (R-18, R-20). The note sits
+// inside the fixed-height host, so it does not move the host's box (R-11).
 
 import type { Step } from "../../trace/types.js";
 import type { UiCallbacks } from "../controller.js";
 import { el, stepAccessibleName } from "../a11y.js";
 
+// The cap that stopped a run: its reason and the limit in dollars. Passed only
+// when the running region is in the cap_reached state.
+export interface RunningCapInfo {
+  reason: "session" | "overall";
+  limitUsd: number;
+}
+
 // Renders the running region content. prefix are the replayed steps (drawn
 // above), liveSteps the live steps streamed so far. finished is true once the
 // fork completes, when compare is offered. The Stop button sits in a
-// fixed-height control row so it never moves as steps arrive.
+// fixed-height control row so it never moves as steps arrive. capInfo, when
+// given, names the cap that stopped the run in a plain note below the log.
 export function renderRunning(
   prefix: Step[],
   liveSteps: Step[],
   finished: boolean,
-  callbacks: UiCallbacks
+  callbacks: UiCallbacks,
+  capInfo?: RunningCapInfo
 ): HTMLElement {
   const region = el("div", "running");
 
@@ -67,6 +82,21 @@ export function renderRunning(
     log.appendChild(item);
   }
   region.appendChild(log);
+
+  // The cap note names the cap in words, so the running region itself says the
+  // run stopped at a cap, not colour alone (R-18, R-20). It carries
+  // data-cap-reached so the e2e test can find the cap state on the running
+  // region.
+  if (capInfo) {
+    const note = el(
+      "p",
+      "running-cap-note",
+      `The ${capInfo.reason} spend cap of $${capInfo.limitUsd} was reached, so the run stopped here. The partial branch is kept.`
+    );
+    note.setAttribute("role", "status");
+    note.dataset["capReached"] = "true";
+    region.appendChild(note);
+  }
 
   return region;
 }

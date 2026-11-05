@@ -8,6 +8,11 @@
 // carries its data-region, so no state change moves anything (R-11). All trace
 // content reaches the DOM through textContent (a11y.ts helpers and the step
 // card), never innerHTML, so a crafted string is shown, not run (R-10).
+//
+// On boot the app reads GET /api/mode. In demo mode it turns the banner on with
+// its reason, records which fork points have a prerecorded future, and opens
+// the prerecorded root run, so the banner shows from first load and the edit
+// screen offers only those fork points (R-14, R-17).
 
 import "./theme/tokens.css";
 import "./theme/theme.css";
@@ -33,6 +38,7 @@ import { renderRunning } from "./screens/running.js";
 import { renderCompare } from "./screens/compare.js";
 import { el, announce, stepAccessibleName } from "./a11y.js";
 import { replayedPrefix } from "./prefix.js";
+import { resolveEditStep, splitBranch } from "./editTarget.js";
 import type { UiCallbacks } from "./controller.js";
 import * as api from "./api.js";
 
@@ -55,6 +61,19 @@ let parentRunIdForCompare: string | null = null;
 let activeForkId: string | null = null;
 let activeStream: api.StreamHandle | null = null;
 
+// The step id the edit region last rendered for, so focus moves into the editor
+// only when the selected step changed, not on an incidental re-render (R-19,
+// Bug 1). An incidental re-render (a streamed live step, a trace-list refresh)
+// leaves the user's focus where they put it.
+let lastEditStepId: string | null = null;
+
+// The kept partial branch when a spend cap stops a fork (R-18). It is read from
+// the saved branch, split into the replayed prefix and the live steps, so the
+// running region shows exactly what was saved rather than relying on the live
+// steps the stream happened to deliver. Cleared when a new record or fork
+// starts.
+let capPartialBranch: { prefix: Step[]; live: Step[] } | null = null;
+
 // The callbacks the screens call. Each mutates state and re-renders.
 const callbacks: UiCallbacks = {
   record,
@@ -75,6 +94,7 @@ async function record(task: string): Promise<void> {
   state.compare = { status: "empty" };
   state.selectedStepId = null;
   state.edit = null;
+  capPartialBranch = null;
   render();
 
   const streamId = api.newId();
@@ -140,6 +160,7 @@ async function runForward(): Promise<void> {
   const prefix = currentPrefix(forkPointStepId);
 
   state.running = { status: "ready", value: [] };
+  capPartialBranch = null;
   render();
 
   const streamId = api.newId();
@@ -160,21 +181,29 @@ async function runForward(): Promise<void> {
       renderRunningRegion(prefix, true);
       await refreshTraceList();
     },
-    onCap: (reason, limitUsd, runId) => {
+    onCap: async (reason, limitUsd, runId) => {
       activeForkId = null;
       activeStream = null;
-      const steps =
-        state.running.status === "ready" ? state.running.value : [];
-      state.running = toCapReached(steps, reason, limitUsd);
+      parentRunIdForCompare = parentRunId;
+      // Load the saved partial branch first, then read its kept steps from the
+      // branch itself (R-18): the prefix is every step before the first live
+      // step, the live steps are the rest. This shows exactly what was saved,
+      // not whatever the stream delivered before the cap landed.
+      await loadTrace(runId, { asCurrent: true, forkedFrom: parentRunId });
+      const branch = tracesById.get(runId);
+      const live = branch ? splitBranch(branch).live : capStreamSteps();
+      capPartialBranch = branch
+        ? splitBranch(branch)
+        : { prefix, live };
+      state.running = toCapReached(live, reason, limitUsd);
       // A cap fell back to demo mode: show the banner with its reason (R-17).
       state.demoMode = {
         active: true,
         reason: `The ${reason} spend cap of $${limitUsd} was reached. Showing what completed.`,
         forkableStepIds: state.demoMode.forkableStepIds,
       };
-      parentRunIdForCompare = parentRunId;
-      void loadTrace(runId, { asCurrent: true, forkedFrom: parentRunId });
       render();
+      await refreshTraceList();
     },
     onError: (message) => {
       activeForkId = null;
@@ -206,10 +235,20 @@ async function runForward(): Promise<void> {
   }
 
   // On a cap_hit the JSON response carries it too; the stream's onCap already
-  // handled the UI, but guard in case the stream dropped.
+  // handled the UI, but guard in case the stream dropped. Load the saved branch
+  // and show its kept partial branch the same way the stream path does.
   if (res.status === "cap_hit") {
-    const steps = state.running.status === "ready" ? state.running.value : [];
-    state.running = toCapReached(steps, res.reason, res.limitUsd);
+    parentRunIdForCompare = parentRunId;
+    await loadTrace(res.runId, { asCurrent: true, forkedFrom: parentRunId });
+    const branch = tracesById.get(res.runId);
+    const live = branch ? splitBranch(branch).live : capStreamSteps();
+    capPartialBranch = branch ? splitBranch(branch) : { prefix, live };
+    state.running = toCapReached(live, res.reason, res.limitUsd);
+    state.demoMode = {
+      active: true,
+      reason: `The ${res.reason} spend cap of $${res.limitUsd} was reached. Showing what completed.`,
+      forkableStepIds: state.demoMode.forkableStepIds,
+    };
     render();
   }
   // demoMode flagged in the response (R-17): show the banner.
@@ -295,6 +334,41 @@ async function refreshTraceList(): Promise<void> {
   render();
 }
 
+// Reads GET /api/mode once on boot. In demo mode it turns the banner on with a
+// plain reason and records the fork points that have a prerecorded future, so
+// the banner shows from first load and the edit screen offers only those fork
+// points (R-14, R-17). It returns whether the app is in demo mode so boot can
+// open the prerecorded root run next. In fake mode it leaves demo mode off, so
+// the banner slot stays reserved but empty.
+async function loadMode(): Promise<boolean> {
+  const res = await api.getMode();
+  if (!res.ok) return false;
+  if (res.modelMode === "demo") {
+    state.demoMode = {
+      active: true,
+      reason:
+        "Live runs are unavailable, showing prerecorded runs and futures.",
+      forkableStepIds: res.forkableStepIds,
+    };
+    render();
+    return true;
+  }
+  return false;
+}
+
+// In demo mode there is no record step, so the app opens the prerecorded root
+// run (the one with no parentRunId) on boot. That draws its timeline and tree,
+// so the user can select a step: a fork point with a prerecorded future offers
+// "Run forward from here", and one without shows the disabled note (R-14,
+// R-17). Reads the already-loaded trace list, so it runs after refreshTraceList.
+async function openRootDemoRun(): Promise<void> {
+  if (state.traces.status !== "ready") return;
+  const root = state.traces.value.find((s) => s.parentRunId === undefined);
+  if (root) {
+    await loadTrace(root.runId, { asCurrent: true });
+  }
+}
+
 // The replayed prefix from the currently loaded trace: every step strictly
 // before the fork point. The pure logic lives in prefix.ts (and is unit
 // tested there); this just reads the current trace's steps and delegates, so
@@ -304,6 +378,14 @@ function currentPrefix(forkPointStepId: string): Step[] {
     state.current.status === "ready" ? state.current.value : undefined;
   if (!cur) return [];
   return replayedPrefix(cur.steps, forkPointStepId);
+}
+
+// The live steps the stream delivered, used only as a fallback when the saved
+// branch could not be loaded for the cap partial branch.
+function capStreamSteps(): Step[] {
+  return state.running.status === "ready" || state.running.status === "cap_reached"
+    ? state.running.value
+    : [];
 }
 
 // --- rendering ---
@@ -406,8 +488,7 @@ function render(): void {
   renderEditRegion();
 
   // Running region.
-  const prefix =
-    state.selectedStepId !== null ? currentPrefix(state.selectedStepId) : [];
+  const prefix = runningPrefix();
   const finished =
     state.running.status === "ready" &&
     activeForkId === null &&
@@ -416,6 +497,19 @@ function render(): void {
 
   // Compare region.
   renderCompareRegion();
+}
+
+// The replayed prefix the running region draws above the live log. In the
+// cap_reached state it is the prefix read from the saved partial branch, so the
+// kept branch is shown as saved (R-18). Otherwise it is the prefix of the
+// selected fork point in the current trace.
+function runningPrefix(): Step[] {
+  if (state.running.status === "cap_reached" && capPartialBranch) {
+    return capPartialBranch.prefix;
+  }
+  return state.selectedStepId !== null
+    ? currentPrefix(state.selectedStepId)
+    : [];
 }
 
 function renderTimelineRegion(): void {
@@ -439,15 +533,21 @@ function renderTimelineRegion(): void {
 }
 
 function renderEditRegion(): void {
-  if (state.current.status === "ready" && state.selectedStepId !== null) {
-    const step = state.current.value.steps.find(
-      (s) => s.id === state.selectedStepId
+  const trace =
+    state.current.status === "ready" ? state.current.value : undefined;
+  const step = resolveEditStep(trace, state.selectedStepId);
+  if (step) {
+    // Move focus into the editor only when the selected step changed, so
+    // opening a step lands the keyboard there (R-19) while an incidental
+    // re-render leaves focus where the user put it (Bug 1).
+    const focusOnMount = step.id !== lastEditStepId;
+    lastEditStepId = step.id;
+    editHost.replaceChildren(
+      renderEdit(step, state.demoMode, callbacks, focusOnMount)
     );
-    if (step) {
-      editHost.replaceChildren(renderEdit(step, state.demoMode, callbacks));
-      return;
-    }
+    return;
   }
+  lastEditStepId = null;
   editHost.replaceChildren(
     stateBlock("edit", "Select a step to change one field.")
   );
@@ -464,8 +564,16 @@ function renderRunningRegion(prefix: Step[], finished: boolean): void {
       runningHost.replaceChildren(errorBlock(state.running.message));
       break;
     case "cap_reached":
+      // The run stopped at a cap: keep the partial branch and name the cap in
+      // the running region itself (R-18). finished=true so the control row
+      // offers compare, since the partial branch is kept and comparable. The
+      // prefix and live steps come from the saved branch (see runningPrefix and
+      // onCap), so the kept branch is shown exactly as saved.
       runningHost.replaceChildren(
-        renderRunning(prefix, state.running.value, true, callbacks)
+        renderRunning(prefix, state.running.value, true, callbacks, {
+          reason: state.running.reason,
+          limitUsd: state.running.limitUsd,
+        })
       );
       break;
     case "ready":
@@ -537,4 +645,10 @@ function errorBlock(message: string): HTMLElement {
 
 buildShell();
 render();
-void refreshTraceList();
+// Read the mode, load the trace list, and in demo mode open the prerecorded
+// root run so its timeline and tree are on screen from first load.
+void (async () => {
+  const demo = await loadMode();
+  await refreshTraceList();
+  if (demo) await openRootDemoRun();
+})();

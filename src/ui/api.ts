@@ -1,5 +1,5 @@
 // src/ui/api.ts
-// The typed client for the seven server endpoints plus the SSE stream.
+// The typed client for the eight server endpoints plus the SSE stream.
 //
 // One function per endpoint, each typed against the server's shapes. A non-2xx
 // response (429, 404, 503 and the rest) resolves to a typed ApiError the
@@ -12,7 +12,8 @@
 import type { Trace, Step } from "../trace/types.js";
 import type { StepEdit } from "../compare/types.js";
 import type { CompareResult } from "../compare/compare.js";
-import type { TraceSummary, ForkResponse } from "../server/routes.js";
+import type { ModelMode } from "../server/config.js";
+import type { TraceSummary, ForkResponse, ModeResponse } from "../server/routes.js";
 
 // A typed failure: the HTTP status and the server's plain reason text. The
 // client resolves to this instead of throwing, so a screen always gets a value.
@@ -58,6 +59,59 @@ function jsonInit(body: unknown): RequestInit {
     body: JSON.stringify(body),
     credentials: "same-origin",
   };
+}
+
+// GET /api/mode -> { modelMode, forkableStepIds }. The UI reads this once on
+// first load so the banner shows its reason in demo mode and the edit screen
+// offers only the fork points that have a prerecorded future (R-14, R-17). A
+// read-only call that mints no session.
+//
+// The body is parsed to unknown and checked by shape: a modelMode that is one
+// of the two allowed values and a forkableStepIds array of strings. A body
+// missing or malforming either is a bad response, not a silent half-built ok
+// result, so the ok result is built explicitly from the checked fields rather
+// than spread from a wider type. isModeResponse narrows modelMode to ModelMode,
+// so the built result typechecks without a cast.
+export async function getMode(): Promise<ApiResult<ModeResponse>> {
+  let res: Response;
+  try {
+    res = await fetch("/api/mode", { credentials: "same-origin" });
+  } catch {
+    return { ok: false, status: 0, message: "Could not reach the server." };
+  }
+  const raw = await res.text();
+  if (!res.ok) {
+    return { ok: false, status: res.status, message: raw || "Request failed." };
+  }
+  let parsed: unknown;
+  try {
+    parsed = raw.trim() === "" ? {} : JSON.parse(raw);
+  } catch {
+    return { ok: false, status: res.status, message: "Bad response from server." };
+  }
+  if (!isModeResponse(parsed)) {
+    return { ok: false, status: res.status, message: "Bad response from server." };
+  }
+  return {
+    ok: true,
+    modelMode: parsed.modelMode,
+    forkableStepIds: parsed.forkableStepIds,
+  };
+}
+
+// A body is a ModeResponse when modelMode is one of the two allowed values and
+// forkableStepIds is an array of strings. Checking modelMode against the
+// literals (not just typeof string) narrows it to ModelMode, so getMode can
+// build its ok result without a cast and never returns a half-built result when
+// the server sends an empty or malformed body.
+function isModeResponse(value: unknown): value is ModeResponse {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  const mode = v["modelMode"];
+  if (mode !== "fake" && mode !== "demo") return false;
+  const ids = v["forkableStepIds"];
+  if (!Array.isArray(ids)) return false;
+  return ids.every((id) => typeof id === "string");
 }
 
 // POST /api/record { task, streamId? } -> { runId }

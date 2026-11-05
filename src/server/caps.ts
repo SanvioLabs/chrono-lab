@@ -33,23 +33,45 @@ const DEFAULT_PRICE: ModelPrice = {
   outputUsdPerToken: 0.00006,
 };
 
+// An optional per-call price override table. When a model appears here it wins
+// over MODEL_PRICES for that one call, so a caller (the e2e cap server) can
+// price the otherwise-free fake model without touching the shared MODEL_PRICES
+// map. Production leaves this undefined, so the global table and its defaults
+// are unchanged, and a mutation that removes the cap check still makes a
+// capped run complete rather than stop.
+export type PriceOverrides = Record<string, ModelPrice> | undefined;
+
+// Resolves a model's price: the override table first, then the built-in table,
+// then the conservative default.
+function priceFor(model: string, overrides: PriceOverrides): ModelPrice {
+  return overrides?.[model] ?? MODEL_PRICES[model] ?? DEFAULT_PRICE;
+}
+
 // Returns an upper-bound cost estimate for a call given the model and
 // maxTokens. Uses the model's output price for all maxTokens because that is
-// the worst case (output tokens are always at least as expensive as input).
-export function estimateCallCostUsd(model: string, maxTokens: number): number {
-  const price = MODEL_PRICES[model] ?? DEFAULT_PRICE;
+// the worst case (output tokens are always at least as expensive as input). An
+// optional override table prices a model that is free in MODEL_PRICES, so a
+// test can trip a cap without mutating the shared table.
+export function estimateCallCostUsd(
+  model: string,
+  maxTokens: number,
+  overrides?: PriceOverrides
+): number {
+  const price = priceFor(model, overrides);
   return price.outputUsdPerToken * maxTokens;
 }
 
 // Computes the actual cost of a completed call from the token counts reported
 // by the model. Use this after a call returns to charge the ledger; use
-// estimateCallCostUsd only for the pre-call cap check.
+// estimateCallCostUsd only for the pre-call cap check. The same optional
+// override table applies.
 export function computeActualCostUsd(
   model: string,
   inputTokens: number,
-  outputTokens: number
+  outputTokens: number,
+  overrides?: PriceOverrides
 ): number {
-  const price = MODEL_PRICES[model] ?? DEFAULT_PRICE;
+  const price = priceFor(model, overrides);
   return (
     price.inputUsdPerToken * inputTokens +
     price.outputUsdPerToken * outputTokens

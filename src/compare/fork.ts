@@ -16,7 +16,7 @@ import type {
 } from "../trace/types.js";
 import { TRACE_VERSION } from "../trace/types.js";
 import type { ModelAdapter, ToolRegistry } from "../recorder/types.js";
-import type { CapConfig, SpendLedger } from "../server/caps.js";
+import type { CapConfig, SpendLedger, PriceOverrides } from "../server/caps.js";
 import {
   checkCaps,
   estimateCallCostUsd,
@@ -42,6 +42,11 @@ export interface ForkOptions {
   // Shared ledger that carries spend across all forks in this session.
   // When absent a new ledger is created (useful in tests that run one fork).
   spendLedger?: SpendLedger;
+  // An optional per-call price override table (from server config). When set,
+  // a model priced zero in MODEL_PRICES (the fake model) can be given a real
+  // price for this server instance only, so a cap trips through the real path.
+  // Undefined in production, so pricing and the caps are unchanged.
+  priceOverrides?: PriceOverrides;
   // Defaults to a generated UUID when absent.
   branchId?: string;
   // The step bound for the live phase. A model that never stops would loop
@@ -92,6 +97,7 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
     toolRegistry,
     traceDir,
     capConfig,
+    priceOverrides,
   } = options;
   const branchId = options.branchId ?? randomUUID();
   const branchRunId = randomUUID();
@@ -143,7 +149,11 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
     return async (input: ModelCallInput): Promise<ModelCallOutput> => {
       const maxTokens =
         (input.settings?.maxTokens as number | undefined) ?? 1024;
-      const estimated = estimateCallCostUsd(input.model, maxTokens);
+      const estimated = estimateCallCostUsd(
+        input.model,
+        maxTokens,
+        priceOverrides
+      );
 
       try {
         checkCaps(capConfig, ledger.get(), estimated);
@@ -165,9 +175,10 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
         ? computeActualCostUsd(
             input.model,
             output.tokens.input,
-            output.tokens.output
+            output.tokens.output,
+            priceOverrides
           )
-        : computeActualCostUsd(input.model, 0, 0);
+        : computeActualCostUsd(input.model, 0, 0, priceOverrides);
       ledger.add(actualCost);
 
       return output;
@@ -270,7 +281,11 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
     // Check cap before the immediate live call.
     const maxTokens =
       (editedInput.settings?.maxTokens as number | undefined) ?? 1024;
-    const estimated = estimateCallCostUsd(editedInput.model, maxTokens);
+    const estimated = estimateCallCostUsd(
+      editedInput.model,
+      maxTokens,
+      priceOverrides
+    );
 
     try {
       checkCaps(capConfig, ledger.get(), estimated);
@@ -313,7 +328,8 @@ export async function forkTrace(options: ForkOptions): Promise<ForkResult> {
     const actualCost = computeActualCostUsd(
       editedInput.model,
       liveTokens.input,
-      liveTokens.output
+      liveTokens.output,
+      priceOverrides
     );
     ledger.add(actualCost);
 

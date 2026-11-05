@@ -1,7 +1,8 @@
 // src/server/routes.ts
 // The JSON route handlers and the SSE stream (Task 8).
 //
-// Seven endpoints:
+// Eight endpoints:
+//   GET  /api/mode            none                -> { modelMode, forkableStepIds }
 //   POST /api/record          { task }            -> { runId }
 //   GET  /api/traces          none                -> TraceSummary[]
 //   GET  /api/traces/:runId   none                -> Trace or 404
@@ -16,7 +17,10 @@
 // into every forkTrace; the per-forkId AbortController backs /api/stop; a
 // stream is bound to the session that opened it (R-10a). In demo mode a fork
 // returns the prerecorded future for the chosen fork point, or is refused with
-// a plain message when the step has no future (R-14, R-17).
+// a plain message when the step has no future (R-14, R-17). GET /api/mode lets
+// the UI learn, on first load, whether it is in demo mode and which fork points
+// have a prerecorded future, so the banner shows and only those fork points are
+// offered (R-14, R-17).
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -30,7 +34,7 @@ import { forkTrace } from "../compare/fork.js";
 import type { ForkOptions } from "../compare/fork.js";
 import { compareBranches } from "../compare/compare.js";
 import { makeFakeModel } from "../agent/fake-model.js";
-import type { ServerConfig } from "./config.js";
+import type { ServerConfig, ModelMode } from "./config.js";
 import type { SessionStore, Session } from "./sessions.js";
 import { SessionCapFull } from "./sessions.js";
 import type { RateLimiter } from "./rateLimit.js";
@@ -72,6 +76,15 @@ export type ForkResponse =
 export interface RecordRequest {
   task: string;
   streamId?: string;
+}
+
+// GET /api/mode response: the server's model mode and, in demo mode, the fork
+// points that have a prerecorded future. The UI reads this on first load so the
+// banner shows its reason and the edit screen offers only those fork points
+// (R-14, R-17). In fake mode forkableStepIds is empty and is unused.
+export interface ModeResponse {
+  modelMode: ModelMode;
+  forkableStepIds: string[];
 }
 
 // The dependencies the router needs, wired once at server start.
@@ -168,6 +181,10 @@ export function createRouter(deps: RouterDeps): Router {
     const method = (req.method ?? "GET").toUpperCase();
 
     try {
+      if (method === "GET" && pathname === "/api/mode") {
+        await handleMode(req, res);
+        return true;
+      }
       if (method === "POST" && pathname === "/api/record") {
         await handleRecord(req, res);
         return true;
@@ -213,6 +230,25 @@ export function createRouter(deps: RouterDeps): Router {
     sendText(res, 404, "Not found.");
     return true;
   };
+
+  // GET /api/mode -> { modelMode, forkableStepIds }. A read-only call that
+  // mints no session. In demo mode forkableStepIds lists the fork points that
+  // have a prerecorded future; in fake mode it is empty.
+  async function handleMode(
+    _req: IncomingMessage,
+    res: ServerResponse
+  ): Promise<void> {
+    let forkableStepIds: string[] = [];
+    if (config.modelMode === "demo") {
+      const index = await demo();
+      forkableStepIds = index.forkableStepIds;
+    }
+    const response: ModeResponse = {
+      modelMode: config.modelMode,
+      forkableStepIds,
+    };
+    sendJson(res, 200, response);
+  }
 
   // POST /api/record { task, streamId? } -> { runId }
   async function handleRecord(
@@ -420,6 +456,10 @@ export function createRouter(deps: RouterDeps): Router {
       traceDir: session.traceDir,
       capConfig: config.caps,
       spendLedger: ledger,
+      // Pass the server's optional price overrides so the e2e cap server can
+      // price the fake model and trip a cap through the real path. Undefined
+      // in production, so pricing is unchanged.
+      priceOverrides: config.priceOverrides,
       signal: controller.signal,
       onStep: (step) => writeStepEvent(stream, step),
     };

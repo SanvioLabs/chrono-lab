@@ -8,7 +8,7 @@
 // a response, a log or a trace.
 
 import * as path from "node:path";
-import type { CapConfig } from "./caps.js";
+import type { CapConfig, PriceOverrides } from "./caps.js";
 
 export type ModelMode = "fake" | "demo";
 
@@ -43,6 +43,12 @@ export interface ServerConfig {
   // measure its box while live steps still arrive (R-08, R-11). It does not
   // change any recorded output, only when the fork's live steps land.
   fakeStepDelayMs: number;
+  // An optional per-call price override table, passed into every forkTrace.
+  // Default undefined, so a local run and the unit tests leave the shared
+  // MODEL_PRICES table (and its zero-priced fake model) untouched. The e2e
+  // cap server sets a real price for the fake model so a fork trips a spend
+  // cap through the real cap path, without changing production pricing.
+  priceOverrides?: PriceOverrides;
 }
 
 // Built-in defaults, overlaid by the caller's overrides. The trace and static

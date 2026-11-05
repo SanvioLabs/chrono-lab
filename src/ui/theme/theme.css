@@ -533,6 +533,21 @@ body {
   animation: fork-draw var(--fork-draw-ms) ease-out;
 }
 
+/* The cap note names the cap in words below the live log (R-18, R-20). It sits
+   inside the fixed-height running host, so it scrolls with the log and never
+   changes the host's box (R-11). The danger border and tint are decoration; the
+   words carry the meaning. */
+.running-cap-note {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-left: 4px solid var(--danger);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: var(--step--1);
+}
+
 /* --- compare --- */
 
 .compare-title {

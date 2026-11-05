@@ -28,6 +28,14 @@ export function renderTimeline(
 
   const options: HTMLElement[] = [];
 
+  // The active option, kept in sync by both the keyboard handler and a pointer
+  // press (see below). The listbox focus handler reads this, so a pointer press
+  // must update it before focus moves into the listbox.
+  let activeIndex = Math.max(
+    0,
+    trace.steps.findIndex((s) => s.id === selectedStepId)
+  );
+
   trace.steps.forEach((step, index) => {
     const option = el("div", "timeline-option");
     option.setAttribute("role", "option");
@@ -45,7 +53,19 @@ export function renderTimeline(
       option.appendChild(stepDetail(step));
     }
 
+    // A pointer press on an option makes it the active option before focus
+    // moves into the listbox. pointerdown fires before the listbox focus event,
+    // so the focus handler activates the pressed option and never scrolls the
+    // previously selected one into view (Bug 2): without this, a press while
+    // focus was outside the listbox (the case right after a model call, whose
+    // editor holds focus) fired the focus handler with the stale activeIndex,
+    // scrolled the old option under the pointer and selected it instead.
+    option.addEventListener("pointerdown", () => {
+      activeIndex = index;
+    });
+
     option.addEventListener("click", () => {
+      activeIndex = index;
       callbacks.selectStep(step.id);
     });
 
@@ -56,11 +76,6 @@ export function renderTimeline(
   // Keyboard: Up/Down move the active option, Enter opens it, Escape closes the
   // open detail. Selection follows the active option so a screen reader hears
   // the step it lands on.
-  let activeIndex = Math.max(
-    0,
-    trace.steps.findIndex((s) => s.id === selectedStepId)
-  );
-
   listbox.addEventListener("keydown", (ev) => {
     const key = (ev as KeyboardEvent).key;
     if (key === "ArrowDown") {
@@ -81,8 +96,11 @@ export function renderTimeline(
     }
   });
 
-  // When the listbox takes focus and nothing is active yet, mark the first
-  // option active so Up/Down has somewhere to start.
+  // When the listbox takes focus, mark the active option active so Up/Down has
+  // somewhere to start (R-19: Tab into the listbox activates the selected or
+  // first option). A pointer press has already set activeIndex to the pressed
+  // option by the time this runs, so a mouse user lands on what they pressed,
+  // not the previously selected option.
   listbox.addEventListener("focus", () => {
     setActive(options, activeIndex);
   });
