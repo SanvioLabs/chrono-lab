@@ -46,11 +46,14 @@ python3 scripts/check_setup.py
 cd projects
 git clone https://github.com/SanvioLabs/chrono-lab.git
 cd chrono-lab
+git switch staging       # the work lives here; main has only the starter so far
 git config fetch.prune true
 npm install
-npm run e2e:install     # Playwright's browser, kept inside this project
 npm test
 ```
+
+Once the lab UI (spec 03) is on staging, also run `npm run e2e:install`. It
+downloads Playwright's browser into this project for the end-to-end tests.
 
 **Where to start each tool.** Start Claude Code at the harness root
 (`my-harness/`) and point it at `projects/chrono-lab`, so it loads the
