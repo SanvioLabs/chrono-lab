@@ -28,22 +28,38 @@ Work goes on a feature branch, then a pull request into `staging`, then
 
 ## 1. Lay out the folders
 
-Clone the project and the harness **side by side**, never one inside the other:
+Clone the harness, then clone Chrono-Lab into the harness's `projects/` folder.
+The harness ignores everything in `projects/`, so nothing of Chrono-Lab is ever
+committed to it, and Chrono-Lab keeps its own history:
 
 ```
-kiroween/
-├── chrono-lab/          ← this repo, public at submission
-└── harness-starter/     ← Pat's harness, for reference and updates
+my-harness/              <- sanvio-harness-starter: rules, skills, guards
+└── projects/
+    └── chrono-lab/      <- this repo, its own git clone
 ```
 
 ```bash
-mkdir kiroween && cd kiroween
-git clone git@github.com:SanvioLabs/chrono-lab.git
-git clone https://github.com/SanvioLabs/sanvio-harness-starter harness-starter
+git clone https://github.com/SanvioLabs/sanvio-harness-starter my-harness
+cd my-harness
+git config core.hooksPath .githooks
+python3 scripts/check_setup.py
+cd projects
+git clone https://github.com/SanvioLabs/chrono-lab.git
+cd chrono-lab
+git config fetch.prune true
+npm install
+npm run e2e:install     # Playwright's browser, kept inside this project
+npm test
 ```
 
-The repo goes public before we submit, so nothing gets committed into it that
-you haven't read and meant to publish.
+**Where to start each tool.** Start Claude Code at the harness root
+(`my-harness/`) and point it at `projects/chrono-lab`, so it loads the
+harness's rules, skills and guards. Open `projects/chrono-lab` itself as the
+Kiro workspace, because Kiro reads `.kiro/` from the workspace root and this
+repo's `.kiro/` holds the specs and steering the judges look at.
+
+Nothing gets committed into this repo that you haven't read and meant to
+publish.
 
 ## 2. Add the harness
 
@@ -55,14 +71,14 @@ The harness is `sanvio-harness-starter`: MIT-licensed, public, and it already
 works with Kiro. Its rules for how the agent works, replies and handles data
 come across as three steering files.
 
-Copy them as real files, not symlinks. A symlink into the sibling folder looks
+Copy them as real files, not symlinks. A symlink into the harness looks
 fine on your machine and arrives on GitHub as a broken link:
 
 ```bash
-cd chrono-lab
-cp -L ../harness-starter/steering/operating.md       .kiro/steering/harness-operating.md
-cp -L ../harness-starter/steering/response-style.md  .kiro/steering/harness-response-style.md
-cp -L ../harness-starter/steering/data-and-tools.md  .kiro/steering/harness-data-and-tools.md
+# from projects/chrono-lab, with the harness two folders up
+cp -L ../../steering/operating.md       .kiro/steering/harness-operating.md
+cp -L ../../steering/response-style.md  .kiro/steering/harness-response-style.md
+cp -L ../../steering/data-and-tools.md  .kiro/steering/harness-data-and-tools.md
 ```
 
 Then two small edits:
@@ -84,10 +100,12 @@ Everything else in `.kiro/` was written for Chrono-Lab and stays as it is.
 `staging` protected. To work on it:
 
 ```bash
-git clone git@github.com:SanvioLabs/chrono-lab.git && cd chrono-lab
-git config fetch.prune true
-git switch staging && git switch -c spec/01-trace-and-replay
+git switch staging && git pull
+git switch -c <kind>/<short-name>     # for example spec/04-demo-agent
 ```
+
+Open a pull request into `staging`. Nobody pushes to `main` or `staging`
+directly, and a pull request merges only when Pat says so.
 
 **Keep `.kiro/` committed.** The rules require `/.kiro` at the repo root and not
 gitignored. The `.gitignore` leaves it in on purpose.
