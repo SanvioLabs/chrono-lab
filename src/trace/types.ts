@@ -124,6 +124,13 @@ export interface ToolResultStep extends BaseStep {
   cost: null;
 }
 
+// Why a run (or a forked future) stopped producing steps.
+//   "stop"      the model finished on its own (finishReason "stop")
+//   "max_steps" the step bound was reached, so the run ended to avoid a runaway
+//   "aborted"   a stop signal ended the run; the partial run was saved
+//   "cap"       a spend cap was reached; the partial run was saved
+export type EndReason = "stop" | "max_steps" | "aborted" | "cap";
+
 // Trace (the file root)
 export interface Trace {
   // semver string; currently TRACE_VERSION
@@ -136,4 +143,6 @@ export interface Trace {
   parentRunId?: string;
   // absent on root runs
   forkPointStepId?: string;
+  // Why the run ended. Absent when not recorded (older traces, replays).
+  endReason?: EndReason;
 }

@@ -1,0 +1,159 @@
+{
+  "version": "1.1.0",
+  "runId": "07ff83fa-e802-427c-b328-d058fc7887e9",
+  "createdAt": "2026-11-05T06:33:02.730Z",
+  "steps": [
+    {
+      "id": "07ff83fa-e802-427c-b328-d058fc7887e9-0",
+      "runId": "07ff83fa-e802-427c-b328-d058fc7887e9",
+      "parentId": null,
+      "kind": "model_call",
+      "branch": "a2af3bff-78db-4050-b71f-27b63edb5786",
+      "forkPointId": "96b38019-0170-4da6-80d8-d5068f4a98d4-0",
+      "durationMs": 0.005875000000003183,
+      "model": "fake",
+      "settings": {},
+      "tokens": {
+        "input": 12,
+        "output": 4
+      },
+      "cost": 0,
+      "input": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Echo hello back to me."
+          }
+        ],
+        "model": "fake",
+        "settings": {}
+      },
+      "output": {
+        "message": {
+          "role": "assistant",
+          "content": ""
+        },
+        "finishReason": "tool_calls",
+        "toolCalls": [
+          {
+            "id": "call-echo-001",
+            "name": "echo",
+            "arguments": {
+              "text": "hello"
+            }
+          }
+        ],
+        "tokens": {
+          "input": 12,
+          "output": 4
+        }
+      },
+      "live": true,
+      "edited": true
+    },
+    {
+      "id": "07ff83fa-e802-427c-b328-d058fc7887e9-1",
+      "runId": "07ff83fa-e802-427c-b328-d058fc7887e9",
+      "parentId": "d88fc6ef-7f92-4792-bb7f-d1c8614f185d-1",
+      "kind": "tool_call",
+      "branch": "a2af3bff-78db-4050-b71f-27b63edb5786",
+      "forkPointId": "96b38019-0170-4da6-80d8-d5068f4a98d4-0",
+      "durationMs": 0.0028750000000030695,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001",
+        "name": "echo",
+        "arguments": {
+          "text": "hello"
+        }
+      },
+      "output": null,
+      "live": true,
+      "edited": false
+    },
+    {
+      "id": "07ff83fa-e802-427c-b328-d058fc7887e9-2",
+      "runId": "07ff83fa-e802-427c-b328-d058fc7887e9",
+      "parentId": "d88fc6ef-7f92-4792-bb7f-d1c8614f185d-2",
+      "kind": "tool_result",
+      "branch": "a2af3bff-78db-4050-b71f-27b63edb5786",
+      "forkPointId": "96b38019-0170-4da6-80d8-d5068f4a98d4-0",
+      "durationMs": 0,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001"
+      },
+      "output": {
+        "result": "hello",
+        "isError": false
+      },
+      "live": true,
+      "edited": false
+    },
+    {
+      "id": "07ff83fa-e802-427c-b328-d058fc7887e9-3",
+      "runId": "07ff83fa-e802-427c-b328-d058fc7887e9",
+      "parentId": "d88fc6ef-7f92-4792-bb7f-d1c8614f185d-3",
+      "kind": "model_call",
+      "branch": "a2af3bff-78db-4050-b71f-27b63edb5786",
+      "forkPointId": "96b38019-0170-4da6-80d8-d5068f4a98d4-0",
+      "durationMs": 0.020833000000010315,
+      "model": "fake",
+      "settings": {},
+      "tokens": {
+        "input": 20,
+        "output": 6
+      },
+      "cost": 0,
+      "input": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Echo hello back to me."
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          },
+          {
+            "role": "tool",
+            "content": "hello",
+            "toolCallId": "call-echo-001"
+          }
+        ],
+        "model": "fake",
+        "settings": {}
+      },
+      "output": {
+        "message": {
+          "role": "assistant",
+          "content": "Final answer: hello"
+        },
+        "finishReason": "stop",
+        "tokens": {
+          "input": 20,
+          "output": 6
+        }
+      },
+      "live": true,
+      "edited": false
+    }
+  ],
+  "parentRunId": "96b38019-0170-4da6-80d8-d5068f4a98d4",
+  "forkPointStepId": "96b38019-0170-4da6-80d8-d5068f4a98d4-0",
+  "endReason": "stop"
+}

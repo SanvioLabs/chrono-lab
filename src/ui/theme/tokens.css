@@ -1,0 +1,83 @@
+/* src/ui/theme/tokens.css
+   Palette, type and spacing tokens for the lab (R-21, R-23).
+
+   The look is a mad scientist's time lab at night. The past is cold blue; the
+   new future is warm amber. Token names say the role, not the colour, so a
+   later palette change does not rename anything that reads them.
+
+   Two sets: a dark set (the default, in :root) and a light set (in a
+   prefers-color-scheme: light media block, for readability and print). The
+   contrast test (tests/ui/contrast.test.ts) reads this file, computes the WCAG
+   ratio of every token against --bg and --surface in both sets, and holds text
+   tokens to 4.5:1 and the meaning-carrying --line and --focus to 3:1. The
+   values below are the ones the design.md palette table records. */
+
+:root {
+  /* Backgrounds (reference, not measured against themselves). */
+  --bg: #0b1020;
+  --surface: #141b2e;
+
+  /* Text. */
+  --ink: #e8ecf5;
+  --ink-dim: #9aa6c0;
+
+  /* Timeline and branch roles. */
+  --past: #4ea3ff;
+  --future: #ffb24c;
+  --fork: #c792ff;
+
+  /* Compare and state colours. */
+  --diff: #ff6b7a;
+  --danger: #ff6b7a;
+
+  /* Meaning-carrying line and the always-visible focus ring (held to 3:1). */
+  --line: #636f9c;
+  --focus: #8be9ff;
+
+  /* Soft glow at the fork moment (decoration only). */
+  --fork-glow: rgba(199, 146, 255, 0.45);
+  --future-glow: rgba(255, 178, 76, 0.35);
+
+  /* Type scale. */
+  --step--1: 13px;
+  --step-0: 16px;
+  --step-1: 20px;
+  --step-2: 26px;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas,
+    monospace;
+
+  /* Spacing. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Fork-moment animation timing. */
+  --fork-draw-ms: 450ms;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f6fb;
+    --surface: #ffffff;
+
+    --ink: #161a24;
+    --ink-dim: #55607a;
+
+    --past: #1f6fd6;
+    --future: #9a5600;
+    --fork: #7a37c4;
+
+    --diff: #c21f33;
+    --danger: #c21f33;
+
+    --line: #78849e;
+    --focus: #0b6e8a;
+
+    --fork-glow: rgba(122, 55, 196, 0.35);
+    --future-glow: rgba(154, 86, 0, 0.25);
+  }
+}

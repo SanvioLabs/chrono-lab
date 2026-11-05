@@ -1,0 +1,658 @@
+/* src/ui/theme/theme.css
+   Applies the palette tokens and dresses the lab (Costume Contest, R-11, R-21).
+
+   The look is a mad scientist's time lab at night. The theme is decoration over
+   a plain, readable tool: every control keeps a text label, and colour, glow
+   and motion never carry meaning on their own (R-21). The one rule the layout
+   must hold: every region host keeps a fixed box whatever state it is in, so no
+   state change moves anything (R-11). Hosts set a fixed height and scroll their
+   own overflow, so inner content growing (live steps arriving, a detail
+   opening) never resizes the host the e2e test measures. */
+
+@import "./tokens.css";
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.5;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+/* Visually hidden but available to a screen reader. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- header --- */
+
+.app-header {
+  margin-bottom: var(--space-4);
+}
+
+.app-title {
+  font-size: var(--step-2);
+  margin: 0 0 var(--space-1);
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+.app-tagline {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--step--1);
+}
+
+/* --- the banner slot (reserved, fixed box, R-17) --- */
+
+.region-host--banner {
+  min-height: 44px;
+  height: 44px;
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-radius: 6px;
+  border: 1px solid transparent;
+}
+
+.region-host--banner[data-region="banner"]:not(:empty) {
+  /* The host is never empty (it holds the inner node); tint only when active. */
+}
+
+.banner-text {
+  margin: 0;
+  color: var(--future);
+  font-weight: 600;
+}
+
+.banner-empty {
+  width: 1px;
+  height: 1px;
+}
+
+/* --- record row --- */
+
+.record-row {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.task-input {
+  flex: 1;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--step-0);
+  font-family: var(--font-ui);
+}
+
+/* --- buttons --- */
+
+.btn {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--step-0);
+  font-family: var(--font-ui);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--past);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--record {
+  border-color: var(--past);
+  color: var(--past);
+}
+
+.btn--run {
+  border-color: var(--future);
+  color: var(--future);
+}
+
+.btn--stop {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn--compare {
+  border-color: var(--fork);
+  color: var(--fork);
+}
+
+/* A visible focus ring at all times (R-19). Never removed. */
+:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+:focus:not(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* --- the region grid; each host a fixed box so no state change reflows --- */
+
+.region-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.region-host {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: var(--space-3);
+  overflow: auto;
+}
+
+.region-host--timeline {
+  min-height: 360px;
+  height: 360px;
+}
+.region-host--tree {
+  min-height: 360px;
+  height: 360px;
+}
+.region-host--edit {
+  min-height: 300px;
+  height: 300px;
+  grid-column: 1 / 2;
+}
+.region-host--running {
+  min-height: 300px;
+  height: 300px;
+  grid-column: 2 / 3;
+}
+.region-host--compare {
+  min-height: 320px;
+  height: 320px;
+  grid-column: 1 / -1;
+}
+
+/* State blocks fill their host; they never change the host's box. */
+.state-box {
+  min-height: 100%;
+}
+
+.state-text {
+  color: var(--ink-dim);
+}
+
+.state-error-text {
+  color: var(--danger);
+}
+
+.skeleton {
+  width: 100%;
+  height: 80%;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--surface),
+    rgba(120, 132, 158, 0.15),
+    var(--surface)
+  );
+}
+
+/* --- timeline (listbox) --- */
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.timeline-option {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  background: var(--bg);
+}
+
+.timeline-option[data-role="replayed"] {
+  border-left-color: var(--past);
+}
+.timeline-option[data-role="live"] {
+  border-left-color: var(--future);
+}
+.timeline-option[data-role="fork point"] {
+  border-left-color: var(--fork);
+}
+
+.timeline-option.is-active {
+  box-shadow: 0 0 0 2px var(--focus) inset;
+}
+.timeline-option.is-selected {
+  border-color: var(--past);
+}
+
+.step-summary {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.step-kind {
+  font-weight: 600;
+  color: var(--past);
+}
+
+.step-text {
+  flex: 1;
+  color: var(--ink);
+}
+
+.step-meta {
+  display: flex;
+  gap: var(--space-3);
+  color: var(--ink-dim);
+  font-size: var(--step--1);
+}
+
+.step-detail {
+  margin-top: var(--space-2);
+  display: flex;
+  gap: var(--space-3);
+}
+
+.json-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.json-label {
+  font-size: var(--step--1);
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.json-body {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: var(--space-2);
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* --- branch tree --- */
+
+.branch-tree {
+  width: 100%;
+  overflow: auto;
+}
+
+.tree-svg {
+  display: block;
+}
+
+.tree-line {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.tree-line--live {
+  stroke: var(--future);
+}
+
+.tree-crack {
+  stroke: var(--fork);
+  stroke-width: 2;
+  fill: none;
+}
+
+.node {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+.node--replayed {
+  fill: var(--past);
+}
+.node--live {
+  fill: var(--future);
+}
+.node--fork {
+  fill: var(--fork);
+}
+
+.tree-node {
+  cursor: pointer;
+}
+.tree-node:focus {
+  outline: none;
+}
+.tree-node:focus .node {
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+
+/* --- timeline spine (decoration) --- */
+
+.timeline-spine .spine-line {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+/* --- edit --- */
+
+.edit-title {
+  font-size: var(--step-1);
+  margin: 0 0 var(--space-3);
+}
+
+.edit-note {
+  color: var(--ink-dim);
+}
+
+.edit-picker {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.edit-pick {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font-size: var(--step--1);
+}
+
+.edit-pick[aria-checked="true"] {
+  border-color: var(--future);
+  color: var(--future);
+}
+
+.message-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.message-radio {
+  text-align: left;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  font-size: var(--step--1);
+}
+.message-radio[aria-checked="true"] {
+  border-color: var(--past);
+}
+
+.message-role {
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  font-size: 11px;
+  margin-right: var(--space-2);
+}
+
+.message-content,
+.settings-input,
+.result-input {
+  width: 100%;
+  min-height: 72px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+}
+
+.model-input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.message-edit-label,
+.settings-label,
+.model-label,
+.result-label {
+  display: block;
+  font-size: var(--step--1);
+  color: var(--ink-dim);
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.message-ro {
+  font-size: var(--step--1);
+  color: var(--ink-dim);
+  padding: 2px 0;
+}
+
+.settings-warn {
+  color: var(--danger);
+  font-size: var(--step--1);
+  min-height: 1.2em;
+  margin: var(--space-1) 0 0;
+}
+
+.edit-actions {
+  margin-top: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* --- running --- */
+
+.running {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
+}
+
+/* The control row keeps a fixed height so the Stop button never moves as live
+   steps arrive (R-11). */
+.running-controls {
+  min-height: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.running-prefix-label,
+.running-entry-role {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-right: var(--space-2);
+}
+
+.running-log {
+  flex: 1;
+  overflow: auto;
+}
+
+.running-entry {
+  border-left: 3px solid var(--line);
+  padding: var(--space-1) var(--space-2);
+  margin: var(--space-1) 0;
+  font-size: var(--step--1);
+}
+.running-entry[data-role="replayed"] {
+  border-left-color: var(--past);
+}
+.running-entry[data-role="live"] {
+  border-left-color: var(--future);
+  animation: fork-draw var(--fork-draw-ms) ease-out;
+}
+/* The edited fork-point step reads "fork point" (stepRoleWords) and tints with
+   --fork, matching the tree's fork marker and the timeline (R-20, R-21). */
+.running-entry[data-role="fork point"] {
+  border-left-color: var(--fork);
+  animation: fork-draw var(--fork-draw-ms) ease-out;
+}
+
+/* The cap note names the cap in words below the live log (R-18, R-20). It sits
+   inside the fixed-height running host, so it scrolls with the log and never
+   changes the host's box (R-11). The danger border and tint are decoration; the
+   words carry the meaning. */
+.running-cap-note {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-left: 4px solid var(--danger);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: var(--step--1);
+}
+
+/* --- compare --- */
+
+.compare-title {
+  font-size: var(--step-1);
+  margin: 0 0 var(--space-2);
+}
+
+.compare-diff-banner {
+  color: var(--diff);
+  font-weight: 600;
+  margin-bottom: var(--space-3);
+}
+
+.compare-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.compare-column-title {
+  font-size: var(--step-0);
+  margin: 0 0 var(--space-2);
+  color: var(--ink);
+}
+
+.compare-row {
+  font-size: var(--step--1);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.compare-row.is-diff {
+  outline: 2px solid var(--diff);
+  border-radius: 4px;
+}
+
+.compare-mark {
+  display: inline-block;
+  color: var(--diff);
+  font-weight: 700;
+  margin-right: var(--space-2);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+/* The fork-point label in a compare row, naming the edited step in words. The
+   --fork tint matches the tree marker and the running log; the word carries the
+   meaning (R-20). */
+.compare-fork-mark {
+  display: inline-block;
+  color: var(--fork);
+  font-weight: 700;
+  margin-right: var(--space-2);
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.compare-footer {
+  margin-top: var(--space-3);
+}
+
+.compare-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--step--1);
+  padding: 2px 0;
+}
+
+.compare-stat-label {
+  color: var(--ink-dim);
+}
+
+/* --- the fork-moment animation; the only motion, honours reduced motion --- */
+
+@keyframes fork-draw {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+    box-shadow: 0 0 0 0 var(--future-glow);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+    box-shadow: 0 0 10px 1px var(--future-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .running-entry[data-role="live"],
+  .running-entry[data-role="fork point"] {
+    animation: none;
+  }
+}
+
+/* --- light theme surface tweak for the region grid --- */
+
+@media (prefers-color-scheme: light) {
+  .region-host {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+}
