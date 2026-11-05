@@ -1,0 +1,274 @@
+{
+  "version": "1.1.0",
+  "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+  "createdAt": "2026-11-05T18:21:06.087Z",
+  "steps": [
+    {
+      "id": "88a6377d-bc62-4de6-bcd7-711b92beef63-0",
+      "runId": "88a6377d-bc62-4de6-bcd7-711b92beef63",
+      "parentId": null,
+      "kind": "model_call",
+      "branch": "main",
+      "forkPointId": null,
+      "durationMs": 0.015458999998372747,
+      "model": "fake",
+      "settings": {},
+      "tokens": {
+        "input": 12,
+        "output": 4
+      },
+      "cost": 0,
+      "input": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Echo hello back to me"
+          }
+        ],
+        "model": "fake",
+        "settings": {}
+      },
+      "output": {
+        "message": {
+          "role": "assistant",
+          "content": ""
+        },
+        "finishReason": "tool_calls",
+        "toolCalls": [
+          {
+            "id": "call-echo-001",
+            "name": "echo",
+            "arguments": {
+              "text": "hello"
+            }
+          }
+        ],
+        "tokens": {
+          "input": 12,
+          "output": 4
+        }
+      },
+      "live": false,
+      "edited": false
+    },
+    {
+      "id": "88a6377d-bc62-4de6-bcd7-711b92beef63-1",
+      "runId": "88a6377d-bc62-4de6-bcd7-711b92beef63",
+      "parentId": "88a6377d-bc62-4de6-bcd7-711b92beef63-0",
+      "kind": "tool_call",
+      "branch": "main",
+      "forkPointId": null,
+      "durationMs": 0.0338339999980235,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001",
+        "name": "echo",
+        "arguments": {
+          "text": "hello"
+        }
+      },
+      "output": null,
+      "live": false,
+      "edited": false
+    },
+    {
+      "id": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4-0",
+      "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+      "parentId": "88a6377d-bc62-4de6-bcd7-711b92beef63-1",
+      "kind": "tool_result",
+      "branch": "0ccfb245-1748-4c89-b14c-901f8dd39d07",
+      "forkPointId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+      "durationMs": 0,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001"
+      },
+      "output": {
+        "result": "goodbye",
+        "isError": false
+      },
+      "live": false,
+      "edited": true
+    },
+    {
+      "id": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4-1",
+      "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+      "parentId": null,
+      "kind": "model_call",
+      "branch": "0ccfb245-1748-4c89-b14c-901f8dd39d07",
+      "forkPointId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+      "durationMs": 0.046875,
+      "model": "fake",
+      "settings": {},
+      "tokens": {
+        "input": 12,
+        "output": 4
+      },
+      "cost": 0,
+      "input": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Echo hello back to me"
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          },
+          {
+            "role": "tool",
+            "content": "goodbye",
+            "toolCallId": "call-echo-001"
+          }
+        ],
+        "model": "fake",
+        "settings": {}
+      },
+      "output": {
+        "message": {
+          "role": "assistant",
+          "content": ""
+        },
+        "finishReason": "tool_calls",
+        "toolCalls": [
+          {
+            "id": "call-echo-001",
+            "name": "echo",
+            "arguments": {
+              "text": "hello"
+            }
+          }
+        ],
+        "tokens": {
+          "input": 12,
+          "output": 4
+        }
+      },
+      "live": true,
+      "edited": false
+    },
+    {
+      "id": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4-2",
+      "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+      "parentId": "f4d7bfd5-17e2-4623-8f7e-c4355e487f36-1",
+      "kind": "tool_call",
+      "branch": "0ccfb245-1748-4c89-b14c-901f8dd39d07",
+      "forkPointId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+      "durationMs": 0.002958000000944594,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001",
+        "name": "echo",
+        "arguments": {
+          "text": "hello"
+        }
+      },
+      "output": null,
+      "live": true,
+      "edited": false
+    },
+    {
+      "id": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4-3",
+      "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+      "parentId": "f4d7bfd5-17e2-4623-8f7e-c4355e487f36-2",
+      "kind": "tool_result",
+      "branch": "0ccfb245-1748-4c89-b14c-901f8dd39d07",
+      "forkPointId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+      "durationMs": 0,
+      "model": null,
+      "settings": null,
+      "tokens": null,
+      "cost": null,
+      "input": {
+        "toolCallId": "call-echo-001"
+      },
+      "output": {
+        "result": "hello",
+        "isError": false
+      },
+      "live": true,
+      "edited": false
+    },
+    {
+      "id": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4-4",
+      "runId": "b916cfd7-09a4-4d6d-85c4-4207da89a3d4",
+      "parentId": "f4d7bfd5-17e2-4623-8f7e-c4355e487f36-3",
+      "kind": "model_call",
+      "branch": "0ccfb245-1748-4c89-b14c-901f8dd39d07",
+      "forkPointId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+      "durationMs": 0.003125000002910383,
+      "model": "fake",
+      "settings": {},
+      "tokens": {
+        "input": 20,
+        "output": 6
+      },
+      "cost": 0,
+      "input": {
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a helpful assistant."
+          },
+          {
+            "role": "user",
+            "content": "Echo hello back to me"
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          },
+          {
+            "role": "tool",
+            "content": "goodbye",
+            "toolCallId": "call-echo-001"
+          },
+          {
+            "role": "assistant",
+            "content": ""
+          },
+          {
+            "role": "tool",
+            "content": "hello",
+            "toolCallId": "call-echo-001"
+          }
+        ],
+        "model": "fake",
+        "settings": {}
+      },
+      "output": {
+        "message": {
+          "role": "assistant",
+          "content": "Final answer: hello"
+        },
+        "finishReason": "stop",
+        "tokens": {
+          "input": 20,
+          "output": 6
+        }
+      },
+      "live": true,
+      "edited": false
+    }
+  ],
+  "parentRunId": "88a6377d-bc62-4de6-bcd7-711b92beef63",
+  "forkPointStepId": "88a6377d-bc62-4de6-bcd7-711b92beef63-2",
+  "endReason": "stop"
+}

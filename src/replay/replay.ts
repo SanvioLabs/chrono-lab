@@ -60,6 +60,21 @@ class StepIterator {
   peek(): Step | undefined {
     return this.steps[this.index];
   }
+
+  // Peek at the next step of the given kind without consuming it, or undefined
+  // if none remains. Used to read the recorded model and settings so the loop
+  // calls the adapter with the recorded step's own values, not placeholders.
+  peekKind<K extends Step["kind"]>(
+    kind: K
+  ): Extract<Step, { kind: K }> | undefined {
+    for (let i = this.index; i < this.steps.length; i++) {
+      const step = this.steps[i];
+      if (step !== undefined && step.kind === kind) {
+        return step as Extract<Step, { kind: K }>;
+      }
+    }
+    return undefined;
+  }
 }
 
 // Snapshot of the original network surfaces captured at module load time,
@@ -264,10 +279,15 @@ async function runReplay(trace: Trace, options: ReplayOptions): Promise<Trace> {
       }
     }
 
+    // Drive the call with the recorded step's own model and settings so strict
+    // replay matches traces recorded with any model, not just "stub". The
+    // stub adapter consumes this same next model_call step, so the input it
+    // compares against the recording carries the recorded model and settings.
+    const nextModelStep = iterator.peekKind("model_call");
     const modelOutput = await modelAdapter({
       messages: [...messages],
-      model: "stub",
-      settings: {},
+      model: nextModelStep ? nextModelStep.input.model : "stub",
+      settings: nextModelStep ? nextModelStep.input.settings : {},
     });
 
     messages.push(modelOutput.message);
