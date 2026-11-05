@@ -27,6 +27,40 @@ UI  <--SSE stream--  server  <--onStep-- live steps as they arrive
 
 ---
 
+## Run it
+
+Build the UI once, start the server, open the URL it prints:
+
+```
+npm run build:ui        # writes the UI bundle to dist/ui
+npm run serve           # starts the server on http://127.0.0.1:3000
+```
+
+`serve` reads two environment variables, both optional:
+
+- `PORT` (default `3000`): the port to bind. An integer in 1..65535; anything
+  else exits with a plain message.
+- `MODEL_MODE` (default `fake`): `fake` runs the deterministic fake model;
+  `demo` serves the committed `demo/` fixtures. Any other value exits with a
+  plain message.
+
+The server binds `127.0.0.1` only, writes traces under `.traces`, and stops
+cleanly on Ctrl-C. If `dist/ui` is missing it prints a message asking you to run
+`npm run build:ui` first, rather than serving a blank page.
+
+For UI development, run the server and the vite dev server together:
+
+```
+npm run serve           # the API on :3000
+npm run dev             # the vite dev UI, proxying /api to :3000
+```
+
+`npm run dev` proxies `/api` (JSON and the SSE stream) to the serve port, so the
+dev UI reaches the running server. When `serve` runs on a non-default port, set
+the same `PORT` for `npm run dev` so the proxy target matches.
+
+---
+
 ## Front-end stack: the call
 
 **Plain TypeScript with Vite, no UI framework; the timeline and branch tree are
@@ -214,6 +248,7 @@ step.
 ```
 src/server/
   caps.ts        (exists) prices, checkCaps, recordSpend, SpendLedger
+  main.ts        the entry: reads PORT and MODEL_MODE, serves dist/ui, listens on 127.0.0.1, stops on SIGINT/SIGTERM
   server.ts      createServer: routing, static files, start/stop, CSP
   sessions.ts    SessionStore: mint on first write, cap count, expire; one session ledger each
   ledger.ts      the one global SpendLedger for the overall cap
@@ -222,6 +257,16 @@ src/server/
   rateLimit.ts   per-session, per-IP and global token-bucket limiter
   static.ts      safe path resolution inside dist/ui
 ```
+
+`main.ts` is the top-level entry `npm run serve` runs. `createServer` (in
+`server.ts`) only builds a `ServerHandle`; it never listens on its own, so the
+entry reads the environment, calls `createServer`, starts it, prints
+`Chrono-Lab running at http://127.0.0.1:<port>`, and keeps the process alive
+until a signal stops it. Its env parsing lives in a pure, exported `parseEnv`
+so a unit test checks the defaults, the demo mode, an invalid mode and an
+invalid port without starting a server. If `dist/ui` is missing when it starts,
+it prints a plain message pointing at `npm run build:ui` and exits rather than
+serving a blank page.
 
 ### The two ledgers (R-07)
 
@@ -811,18 +856,25 @@ Add dev dependencies and scripts; no runtime dependency, no framework.
 }
 "scripts": {
   // existing: build, test, typecheck
-  "dev": "vite",                       // UI dev server
+  "dev": "vite",                       // UI dev server, proxies /api to the serve port
   "build:ui": "vite build",            // UI production bundle
-  "serve": "tsx src/server/server.ts", // run the server (serves built UI)
+  "serve": "tsx src/server/main.ts",   // run the server (serves built UI from dist/ui)
   "test:e2e": "playwright test"        // the one browser test (browsers pre-installed)
 }
 ```
+
+`serve` runs `src/server/main.ts`, the entry that reads `PORT` (default `3000`)
+and `MODEL_MODE` (`fake` default, `demo` allowed), serves `dist/ui`, binds
+`127.0.0.1`, and stops cleanly on a signal. See "Run it" above. `dev`'s vite
+config adds a `server.proxy` for `/api` to the serve port so the dev UI reaches
+the running server.
 
 ---
 
 ## Files to create
 
 ```
+src/server/main.ts
 src/server/server.ts
 src/server/sessions.ts
 src/server/ledger.ts
@@ -853,6 +905,7 @@ demo/prerecorded-future.json
 demo/README.md
 tests/e2e/lab.spec.ts
 tests/e2e/playwright.config.ts
+tests/server/main.test.ts
 tests/server/routes.test.ts
 tests/server/sessions.test.ts
 tests/server/ledger.test.ts
@@ -870,7 +923,7 @@ src/compare/fork.ts   add onStep and signal to ForkOptions; forward live steps t
 src/recorder/recorder.ts  honour an abort signal on the record path (C-03)
 src/server/caps.ts    add one zero-cost "fake" entry to MODEL_PRICES
 package.json          add vite 5.4.21 and @playwright/test; add dev/build:ui/serve/test:e2e scripts
-vite.config.ts        new: UI root src/ui, build out to dist/ui  (listed here as it is config, not app code)
+vite.config.ts        new: UI root src/ui, build out to dist/ui, server.proxy /api to the serve port  (listed here as it is config, not app code)
 ```
 
 ---

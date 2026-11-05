@@ -7,7 +7,7 @@
     "build": "tsc --project tsconfig.json",
     "dev": "vite",
     "build:ui": "vite build",
-    "serve": "tsx src/server/server.ts",
+    "serve": "tsx src/server/main.ts",
     "test": "vitest --run",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test --config tests/e2e/playwright.config.ts",
     "e2e:install": "PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium",
