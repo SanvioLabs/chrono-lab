@@ -255,7 +255,10 @@ export function createRouter(deps: RouterDeps): Router {
     // session existed is claimed here; a stream already bound to another
     // session is not written to.
     const stream = bindStream(streamId, session);
-    const fake = makeFakeModel();
+    // The fake model's per-step delay comes from config: 0 in a local run and
+    // the unit tests, a small value in the e2e run so the UI can show the Stop
+    // button and measure its box while live steps still arrive (R-08, R-11).
+    const fake = makeFakeModel({ stepDelayMs: config.fakeStepDelayMs });
     const recorder = new Recorder({
       modelAdapter: fake.modelAdapter,
       toolRegistry: fake.toolRegistry,
@@ -404,7 +407,10 @@ export function createRouter(deps: RouterDeps): Router {
     }
 
     const controller = new AbortController();
-    const fake = makeFakeModel();
+    // The same per-step delay the record path uses, so the live phase does not
+    // finish in the tick it starts and the Stop button can be observed and
+    // measured (R-08, R-11). 0 outside the e2e run, so nothing else changes.
+    const fake = makeFakeModel({ stepDelayMs: config.fakeStepDelayMs });
     const ledger = composeLedger(session.ledger, globalLedger);
     const options: ForkOptions = {
       parentTrace,

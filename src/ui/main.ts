@@ -32,6 +32,7 @@ import { renderEdit } from "./screens/edit.js";
 import { renderRunning } from "./screens/running.js";
 import { renderCompare } from "./screens/compare.js";
 import { el, announce, stepAccessibleName } from "./a11y.js";
+import { replayedPrefix } from "./prefix.js";
 import type { UiCallbacks } from "./controller.js";
 import * as api from "./api.js";
 
@@ -132,8 +133,11 @@ async function runForward(): Promise<void> {
   const forkPointStepId = state.selectedStepId;
   const edit = state.edit;
 
-  // The replayed prefix is every step up to and including the fork point.
-  const prefix = replayedPrefix(forkPointStepId);
+  // The replayed prefix is every step strictly before the fork point. The
+  // fork-point step itself is re-run live, so it belongs to the live steps,
+  // not the prefix (see src/compare/fork.ts, which slices the fork-point step
+  // off the replayed prefix and emits it as the first live step).
+  const prefix = currentPrefix(forkPointStepId);
 
   state.running = { status: "ready", value: [] };
   render();
@@ -291,14 +295,15 @@ async function refreshTraceList(): Promise<void> {
   render();
 }
 
-// Every step up to and including the fork point, as the replayed prefix.
-function replayedPrefix(forkPointStepId: string): Step[] {
+// The replayed prefix from the currently loaded trace: every step strictly
+// before the fork point. The pure logic lives in prefix.ts (and is unit
+// tested there); this just reads the current trace's steps and delegates, so
+// the prefix is the same while the fork runs and when it is done.
+function currentPrefix(forkPointStepId: string): Step[] {
   const cur =
     state.current.status === "ready" ? state.current.value : undefined;
   if (!cur) return [];
-  const idx = cur.steps.findIndex((s) => s.id === forkPointStepId);
-  if (idx < 0) return [];
-  return cur.steps.slice(0, idx + 1);
+  return replayedPrefix(cur.steps, forkPointStepId);
 }
 
 // --- rendering ---
@@ -402,7 +407,7 @@ function render(): void {
 
   // Running region.
   const prefix =
-    state.selectedStepId !== null ? replayedPrefix(state.selectedStepId) : [];
+    state.selectedStepId !== null ? currentPrefix(state.selectedStepId) : [];
   const finished =
     state.running.status === "ready" &&
     activeForkId === null &&

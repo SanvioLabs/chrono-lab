@@ -4,7 +4,13 @@
 //
 // Deterministic: the server runs modelMode "fake", so the loop records the same
 // four steps every time and forks to a stable result, with no network and no
-// API key.
+// API key. The server also paces the fake model with a small per-step delay
+// (FAKE_STEP_DELAY_MS, set by the Playwright config), so the fork does not
+// finish in the tick it starts: the Stop button is on screen while live steps
+// arrive, which lets this test observe and measure it (R-08, R-11) before it is
+// swapped for Compare. The delay only moves when steps land, never what they
+// record, so the loop stays deterministic and still finishes well inside the
+// 30 s compare wait.
 //
 // =====================================================================
 // THE CONTRACT THE UI MUST MEET (roles and accessible names)
@@ -56,7 +62,8 @@
 //     steps"; each arriving live step is appended as an entry whose accessible
 //     name names the step, under the replayed prefix.
 //   - one button, name "Stop", posts /api/stop. Its box never moves as steps
-//     arrive (R-11).
+//     arrive (R-11). The control row it sits in keeps the same box when Stop is
+//     swapped for "Compare with parent" once the fork finishes (R-11).
 //
 // Compare (R-16):
 //   - a button, name "Compare with parent", opens the compare region.
@@ -235,17 +242,32 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
     await runButton.click();
     await expect(runningRegion).toBeVisible();
 
+    // The server paces the fake model (FAKE_STEP_DELAY_MS in the e2e run), so
+    // the fork does not finish in the tick it starts: the Stop button is on
+    // screen while live steps arrive, and this test observes and measures it
+    // before the swap to Compare. The whole loop still finishes well inside the
+    // 30 s compare wait below.
+
     // The Stop control is present while the fork runs (R-08).
     const stopButton = page.getByRole("button", { name: /^stop$/i });
     await expect(stopButton).toBeVisible();
+
+    // The control row reserves the space the Stop button lives in, and keeps it
+    // when Stop is swapped for "Compare with parent" once the fork finishes
+    // (R-11). Measure the row now, while Stop is present, and compare it after
+    // the swap below.
+    const controlRow = runningRegion.locator(".running-controls");
+    await expect(controlRow).toBeVisible();
+    const controlRowWithStop = await boxOf(controlRow);
 
     // The running region is a live log; live steps arrive in order under the
     // replayed prefix (R-20).
     const liveLog = page.getByRole("log", { name: /live steps/i });
     await expect(liveLog).toBeVisible();
 
-    // As steps arrive, the Stop button and the reserved regions do not move
-    // (R-11). Measure the Stop box before and after at least one step lands.
+    // As steps arrive, the Stop button does not move (R-11). Measure the Stop
+    // box before and after at least one step lands, while Stop is still on
+    // screen.
     const stopBefore = await boxOf(stopButton);
     // At least one live step entry appears.
     const liveEntries = liveLog.getByRole("listitem").or(
@@ -262,6 +284,16 @@ test.describe("Chrono-Lab: the full loop, no reflow, keyboard and a11y", () => {
       name: /compare with parent/i,
     });
     await expect(compareButton).toBeVisible({ timeout: 30_000 });
+
+    // Stop has been swapped for Compare, and Stop is gone. The control row that
+    // held Stop still holds the same box: the reserved-space promise for this
+    // row (R-11).
+    await expect(stopButton).toHaveCount(0);
+    const controlRowWithCompare = await boxOf(controlRow);
+    expect(
+      controlRowWithCompare,
+      "the running control row moved or resized when Stop became Compare (R-11)"
+    ).toEqual(controlRowWithStop);
 
     // ---- 5. Compare the new branch with its parent (R-16). ----
     await assertNoReflow(

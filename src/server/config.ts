@@ -36,6 +36,13 @@ export interface ServerConfig {
   rateLimit: ServerRateLimitConfig;
   // "fake" until spec 04; "demo" forces the fallback.
   modelMode: ModelMode;
+  // An optional per-step delay for the fake model, in milliseconds. Default 0,
+  // so a local run and the unit tests are unchanged. The e2e server sets a
+  // small value so the fake model does not finish a fork in the same tick it
+  // starts it, which lets the Playwright test observe the Stop button and
+  // measure its box while live steps still arrive (R-08, R-11). It does not
+  // change any recorded output, only when the fork's live steps land.
+  fakeStepDelayMs: number;
 }
 
 // Built-in defaults, overlaid by the caller's overrides. The trace and static
@@ -58,6 +65,7 @@ const BUILT_IN: ServerConfig = {
     globalPerMin: 600,
   },
   modelMode: "fake",
+  fakeStepDelayMs: 0,
 };
 
 // Returns a ServerConfig filled from the given overrides over built-in

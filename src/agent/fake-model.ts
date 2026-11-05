@@ -20,6 +20,18 @@ export interface FakeModel {
   reset(): void;
 }
 
+// Options for makeFakeModel.
+export interface FakeModelOptions {
+  // An optional per-call delay for the model adapter, in milliseconds. The
+  // adapter waits this long before it resolves, so a caller can pace the
+  // otherwise-instant fake model. Default 0: no wait, so unit tests and
+  // production are unchanged. Only the e2e server sets this, so a fork runs
+  // long enough for the Stop button to be observed while live steps arrive.
+  // The wait is a timer, not a clock read, so the adapter's outputs stay
+  // deterministic; only when they resolve changes.
+  stepDelayMs?: number;
+}
+
 // The fixed response sequence. Turn 0 asks for the echo tool; turn 1 gives a
 // final answer. Turns 2 and 3 repeat the same pair, so one adapter instance
 // drives a record run (turns 0 and 1) and then one fork live phase (turns 2
@@ -62,20 +74,31 @@ const RESPONSES: ModelCallOutput[] = [
   },
 ];
 
+// A timer-based wait that resolves after ms milliseconds. It reads no clock, so
+// it keeps the fake model's no-clock promise; it only delays when a call
+// resolves, never what it resolves to.
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Returns a fresh fake model. The adapter advances a cursor through RESPONSES,
 // so the same call sequence always yields the same outputs. When the cursor
 // runs past the end the adapter repeats the final stop response, so a run that
 // goes further than the scripted turns still ends cleanly rather than throwing.
 // The echo tool returns its text argument unchanged. Nothing here touches the
-// file system, the network, or the clock.
-export function makeFakeModel(): FakeModel {
+// file system, the network, or the clock. With stepDelayMs set the adapter
+// waits that long before resolving each call, which paces the otherwise-instant
+// fake model for the e2e run without changing any recorded output.
+export function makeFakeModel(options: FakeModelOptions = {}): FakeModel {
   let cursor = 0;
+  const stepDelayMs = options.stepDelayMs ?? 0;
 
   const modelAdapter: ModelAdapter = async (
     _input: ModelCallInput
   ): Promise<ModelCallOutput> => {
     const response = RESPONSES[cursor] ?? RESPONSES[RESPONSES.length - 1]!;
     cursor += 1;
+    if (stepDelayMs > 0) await wait(stepDelayMs);
     return response;
   };
 

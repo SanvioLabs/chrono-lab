@@ -11,3 +11,7 @@ coverage/
 
 # Session traces written at runtime. Demo traces live in demo/ and are committed.
 data/sessions/
+
+# Playwright output from the e2e run.
+test-results/
+playwright-report/
